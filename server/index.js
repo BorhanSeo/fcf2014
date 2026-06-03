@@ -45,7 +45,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'সার্ভার এরর', error: process.env.NODE_ENV === 'development' ? err.message : undefined });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🏦 FCF 2014 সার্ভার চালু হয়েছে — http://localhost:${PORT}`);
-  console.log(`📊 API Health: http://localhost:${PORT}/api/health\n`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`\n🏦 FCF 2014 সার্ভার চালু হয়েছে — http://localhost:${PORT}`);
+    console.log(`📊 API Health: http://localhost:${PORT}/api/health\n`);
+  });
+}
+
+module.exports = app;
