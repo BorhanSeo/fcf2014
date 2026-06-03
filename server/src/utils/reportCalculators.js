@@ -1,8 +1,11 @@
 const { PrismaClient } = require('@prisma/client');
 
 /**
- * Report Calculators — Financial statement logic
+ * Report Calculators — Financial statement logic (OPTIMIZED)
  * সব statement monthly ও yearly উভয়ভাবে calculate হবে
+ * 
+ * OPTIMIZATION: getGlobalFinancialTotals() computes all global sums ONCE.
+ * calculateUserPnLFast() accepts these pre-computed totals, eliminating N+1 queries.
  */
 
 const prisma = new PrismaClient();
@@ -44,21 +47,151 @@ function getPaymentFilter(period, year, month, type) {
   return {};
 }
 
+// ─── NEW: Compute all global financial totals ONCE ──────────────
+// Used by getAllUsers to avoid N+1 queries.
+async function getGlobalFinancialTotals(period, year, month) {
+  const { start, end } = getDateRange(period, year, month || 12);
+  const paymentFilter = getPaymentFilter(period, year, month, 'lte');
+
+  const [
+    paymentAgg,
+    activeUsersCount,
+    investmentAgg,
+    expenseAgg,
+    incomeAgg,
+    manualProfitsAgg,
+    userContributions,
+    userManualProfits,
+  ] = await Promise.all([
+    // Total contributions up to this period
+    prisma.payment.aggregate({ _sum: { amount: true }, where: { ...paymentFilter, status: 'PAID' } }),
+    // Active users count
+    prisma.user.count({ where: { isActive: true } }),
+    // Investments in period (for income calculation)
+    prisma.investment.findMany({ where: { date: { gte: start, lte: end } }, select: { returnAmount: true } }),
+    // Expenses in period
+    prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: start, lte: end } } }),
+    // General incomes in period
+    prisma.income.aggregate({ _sum: { amount: true }, where: { date: { gte: start, lte: end } } }),
+    // Manual profits in period
+    prisma.userProfit.aggregate({ _sum: { amount: true }, where: { date: { gte: start, lte: end } } }),
+    // Per-user contribution totals (groupBy) — for proportional share calculation
+    prisma.payment.groupBy({
+      by: ['userId'],
+      where: { ...paymentFilter, status: 'PAID' },
+      _sum: { amount: true },
+    }),
+    // Per-user manual profits in period
+    prisma.userProfit.groupBy({
+      by: ['userId'],
+      where: { date: { gte: start, lte: end } },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const totalContributions = paymentAgg._sum.amount || 0;
+  const totalExpenses = expenseAgg._sum.amount || 0;
+  const totalGeneralIncome = incomeAgg._sum.amount || 0;
+  const totalManualProfit = manualProfitsAgg._sum.amount || 0;
+  const investmentReturnAmount = investmentAgg.reduce((s, i) => s + i.returnAmount, 0);
+  const totalIncome = investmentReturnAmount + totalGeneralIncome + totalManualProfit;
+
+  // Fixed assets for depreciation
+  const fixedAssets = await prisma.fixedAsset.findMany({
+    where: { purchaseDate: { lte: end }, isDisposed: false },
+    select: { purchaseValue: true, depreciationRate: true },
+  });
+  const periodMonths = period === 'monthly' ? 1 : (period === 'all-time' ? 300 : 12);
+  const depreciation = fixedAssets.reduce((sum, asset) => {
+    return sum + (asset.purchaseValue * (asset.depreciationRate / 100) * (periodMonths / 12));
+  }, 0);
+
+  // Build lookup maps for per-user data
+  const userContribMap = {};
+  userContributions.forEach(row => {
+    userContribMap[row.userId] = row._sum.amount || 0;
+  });
+
+  const userManualProfitMap = {};
+  userManualProfits.forEach(row => {
+    userManualProfitMap[row.userId] = row._sum.amount || 0;
+  });
+
+  return {
+    totalContributions,
+    totalIncome,
+    totalExpenses,
+    depreciation,
+    activeUsersCount,
+    userContribMap,
+    userManualProfitMap,
+  };
+}
+
+// ─── Fast per-user P&L using pre-computed global totals ─────────
+function calculateUserPnLFast(userId, globalTotals) {
+  const {
+    totalContributions,
+    totalIncome,
+    totalExpenses,
+    depreciation,
+    activeUsersCount,
+    userContribMap,
+    userManualProfitMap,
+  } = globalTotals;
+
+  const userContribution = userContribMap[userId] || 0;
+  const manualProfit = userManualProfitMap[userId] || 0;
+
+  const sharePercentage = totalContributions > 0 ? (userContribution / totalContributions) * 100 : 0;
+  const autoProfitLoss = totalContributions > 0 ? (userContribution / totalContributions) * totalIncome : 0;
+  const userExpenseShare = activeUsersCount > 0 ? totalExpenses / activeUsersCount : 0;
+  const netProfitLoss = totalIncome - totalExpenses - depreciation;
+  const userProfitLoss = autoProfitLoss + manualProfit;
+
+  return {
+    userId,
+    userContribution,
+    totalContributions,
+    sharePercentage,
+    totalIncome,
+    totalExpenses,
+    activeUsersCount,
+    userExpenseShare,
+    netProfitLoss,
+    autoProfitLoss,
+    manualProfit,
+    userProfitLoss,
+  };
+}
+
 // ─── Balance Sheet ──────────────────────────────────────────────
 async function calculateBalanceSheet(period, year, month) {
   const { end } = getDateRange(period, year, month || 12);
+  const paymentFilter = getPaymentFilter(period, year, month, 'lte');
 
-  // Assets
-  const fixedAssets = await prisma.fixedAsset.findMany({
-    where: { purchaseDate: { lte: end } },
-  });
+  // Run all queries in parallel
+  const [
+    fixedAssets,
+    investments,
+    paymentAgg,
+    manualProfitsAgg,
+    incomesAgg,
+    expensesAgg,
+  ] = await Promise.all([
+    prisma.fixedAsset.findMany({ where: { purchaseDate: { lte: end } } }),
+    prisma.investment.findMany({ where: { date: { lte: end } } }),
+    prisma.payment.aggregate({ _sum: { amount: true }, where: { ...paymentFilter, status: 'PAID' } }),
+    prisma.userProfit.aggregate({ _sum: { amount: true }, where: { date: { lte: end } } }),
+    prisma.income.aggregate({ _sum: { amount: true }, where: { date: { lte: end } } }),
+    prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { lte: end } } }),
+  ]);
 
   let totalFixedAssetValue = 0;
   let totalDepreciation = 0;
   fixedAssets.forEach((asset) => {
     if (!asset.isDisposed || (asset.disposalDate && asset.disposalDate > end)) {
       totalFixedAssetValue += asset.purchaseValue;
-      // Simple straight-line depreciation calculation
       const yearsHeld = (end.getTime() - asset.purchaseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
       const depreciation = asset.purchaseValue * (asset.depreciationRate / 100) * yearsHeld;
       totalDepreciation += Math.min(depreciation, asset.purchaseValue);
@@ -66,44 +199,13 @@ async function calculateBalanceSheet(period, year, month) {
   });
   const netFixedAssets = totalFixedAssetValue - totalDepreciation;
 
-  // Investments (active only)
-  const investments = await prisma.investment.findMany({
-    where: { date: { lte: end } },
-  });
-  const totalInvestments = investments
-    .filter((inv) => inv.status === 'ACTIVE')
-    .reduce((sum, inv) => sum + inv.amount, 0);
-
-  // Members' Fund (total contributions till date)
-  const paymentFilter = getPaymentFilter(period, year, month, 'lte');
-  const payments = await prisma.payment.findMany({
-    where: { ...paymentFilter, status: 'PAID' },
-  });
-  const membersFund = payments.reduce((sum, p) => sum + p.amount, 0);
-
-  // Income till date (Investment returns + Manual Profits)
-  const manualProfits = await prisma.userProfit.findMany({
-    where: { date: { lte: end } }
-  });
-  const totalManualProfit = manualProfits.reduce((sum, p) => sum + p.amount, 0);
-  
-  const incomes = await prisma.income.findMany({
-    where: { date: { lte: end } }
-  });
-  const totalGeneralIncome = incomes.reduce((s, i) => s + i.amount, 0);
-
+  const totalInvestments = investments.filter(inv => inv.status === 'ACTIVE').reduce((sum, inv) => sum + inv.amount, 0);
+  const membersFund = paymentAgg._sum.amount || 0;
+  const totalManualProfit = manualProfitsAgg._sum.amount || 0;
+  const totalGeneralIncome = incomesAgg._sum.amount || 0;
   const totalIncome = investments.reduce((sum, inv) => sum + inv.returnAmount, 0) + totalManualProfit + totalGeneralIncome;
-
-  // Expenses till date
-  const expenses = await prisma.expense.findMany({
-    where: { date: { lte: end } },
-  });
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-  // Retained Surplus / Deficit (Must match Income & Expenditure)
+  const totalExpenses = expensesAgg._sum.amount || 0;
   const retainedSurplus = totalIncome - totalExpenses - totalDepreciation;
-
-  // Cash = Members Fund + Income - Investments - Expenses - Fixed Assets
   const cashBalance = membersFund + totalIncome - totalInvestments - totalExpenses - totalFixedAssetValue;
 
   return {
@@ -123,17 +225,11 @@ async function calculateBalanceSheet(period, year, month) {
       membersFund,
       retainedSurplus,
       totalEquity: membersFund + retainedSurplus,
-      currentLiabilities: {
-        payables: 0,
-      },
+      currentLiabilities: { payables: 0 },
       totalLiabilities: 0,
       totalLiabilitiesAndEquity: membersFund + retainedSurplus,
     },
-    cumulative: {
-      totalIncome,
-      totalExpenses,
-      totalDepreciation
-    },
+    cumulative: { totalIncome, totalExpenses, totalDepreciation },
     period: { type: period, year, month },
   };
 }
@@ -142,46 +238,25 @@ async function calculateBalanceSheet(period, year, month) {
 async function calculateIncomeExpenditure(period, year, month) {
   const { start, end } = getDateRange(period, year, month || 12);
 
-  // Income
-  const investments = await prisma.investment.findMany({
-    where: { date: { lte: end } },
-  });
+  const [investments, manualProfits, generalIncomes, expenses, fixedAssets] = await Promise.all([
+    prisma.investment.findMany({ where: { date: { lte: end } }, select: { returnAmount: true, date: true } }),
+    prisma.userProfit.aggregate({ _sum: { amount: true }, where: { date: { gte: start, lte: end } } }),
+    prisma.income.findMany({ where: { date: { gte: start, lte: end } }, select: { amount: true, category: true } }),
+    prisma.expense.findMany({ where: { date: { gte: start, lte: end } }, select: { amount: true, category: true } }),
+    prisma.fixedAsset.findMany({ where: { purchaseDate: { lte: end }, isDisposed: false }, select: { purchaseValue: true, depreciationRate: true } }),
+  ]);
 
-  // Filter returns received within the period (approximation)
-  const investmentReturns = investments
-    .filter((inv) => inv.date >= start && inv.date <= end)
-    .reduce((sum, inv) => sum + inv.returnAmount, 0);
-
-  const manualProfits = await prisma.userProfit.findMany({
-    where: { date: { gte: start, lte: end } }
-  });
-  const totalManualProfit = manualProfits.reduce((sum, p) => sum + p.amount, 0);
-
-  const generalIncomes = await prisma.income.findMany({
-    where: { date: { gte: start, lte: end } }
-  });
+  const investmentReturns = investments.filter(inv => inv.date >= start && inv.date <= end).reduce((sum, inv) => sum + inv.returnAmount, 0);
+  const totalManualProfit = manualProfits._sum.amount || 0;
   const profitFromVentures = generalIncomes.filter(i => i.category === 'Business').reduce((s, i) => s + i.amount, 0);
   const interestIncome = generalIncomes.filter(i => i.category === 'Interest').reduce((s, i) => s + i.amount, 0);
   const otherIncomeBase = generalIncomes.filter(i => i.category !== 'Business' && i.category !== 'Interest').reduce((s, i) => s + i.amount, 0);
-
   const totalIncome = investmentReturns + totalManualProfit + profitFromVentures + interestIncome + otherIncomeBase;
 
-  // Expenditure
-  const expenses = await prisma.expense.findMany({
-    where: { date: { gte: start, lte: end } },
-  });
-
   const expenseByCategory = {};
-  expenses.forEach((e) => {
-    expenseByCategory[e.category] = (expenseByCategory[e.category] || 0) + e.amount;
-  });
-
+  expenses.forEach((e) => { expenseByCategory[e.category] = (expenseByCategory[e.category] || 0) + e.amount; });
   const totalExpenditure = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-  // Depreciation for period
-  const fixedAssets = await prisma.fixedAsset.findMany({
-    where: { purchaseDate: { lte: end }, isDisposed: false },
-  });
   const periodMonths = period === 'monthly' ? 1 : 12;
   const depreciationForPeriod = fixedAssets.reduce((sum, asset) => {
     return sum + (asset.purchaseValue * (asset.depreciationRate / 100) * (periodMonths / 12));
@@ -189,9 +264,7 @@ async function calculateIncomeExpenditure(period, year, month) {
 
   return {
     income: {
-      investmentReturns,
-      profitFromVentures,
-      interestIncome,
+      investmentReturns, profitFromVentures, interestIncome,
       otherIncome: totalManualProfit + otherIncomeBase,
       totalIncome,
     },
@@ -208,82 +281,53 @@ async function calculateIncomeExpenditure(period, year, month) {
 // ─── Receipt & Payment Statement ─────────────────────────────
 async function calculateReceiptPayment(period, year, month) {
   const { start, end } = getDateRange(period, year, month || 12);
-
-  // Opening cash — calculate everything before start
   const beforeFilter = getPaymentFilter(period, year, month, 'lt');
-  const paymentsBefore = await prisma.payment.findMany({
-    where: { ...beforeFilter, status: 'PAID' },
-  });
-  const investmentsBefore = await prisma.investment.findMany({
-    where: { date: { lt: start } },
-  });
-  const expensesBefore = await prisma.expense.findMany({
-    where: { date: { lt: start } },
-  });
-  const assetsBefore = await prisma.fixedAsset.findMany({
-    where: { purchaseDate: { lt: start } },
-  });
-  const incomesBefore = await prisma.income.findMany({
-    where: { date: { lt: start } },
-  });
+  const exactFilter = getPaymentFilter(period, year, month, 'exact');
 
-  const totalContributionsBefore = paymentsBefore.reduce((s, p) => s + p.amount, 0);
+  // Run before-period and in-period queries in parallel
+  const [
+    paymentsBefore, investmentsBefore, expensesBefore, assetsBefore, incomesBefore,
+    paymentsInPeriod, investmentsInPeriod, expensesInPeriod, assetsInPeriod, incomesInPeriod,
+  ] = await Promise.all([
+    prisma.payment.aggregate({ _sum: { amount: true }, where: { ...beforeFilter, status: 'PAID' } }),
+    prisma.investment.findMany({ where: { date: { lt: start } }, select: { amount: true, returnAmount: true, status: true } }),
+    prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { lt: start } } }),
+    prisma.fixedAsset.aggregate({ _sum: { purchaseValue: true }, where: { purchaseDate: { lt: start } } }),
+    prisma.income.aggregate({ _sum: { amount: true }, where: { date: { lt: start } } }),
+    prisma.payment.aggregate({ _sum: { amount: true }, where: { ...exactFilter, status: 'PAID' } }),
+    prisma.investment.findMany({ where: { date: { gte: start, lte: end } }, select: { amount: true, returnAmount: true, status: true } }),
+    prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: start, lte: end } } }),
+    prisma.fixedAsset.aggregate({ _sum: { purchaseValue: true }, where: { purchaseDate: { gte: start, lte: end } } }),
+    prisma.income.aggregate({ _sum: { amount: true }, where: { date: { gte: start, lte: end } } }),
+  ]);
+
+  const totalContributionsBefore = paymentsBefore._sum.amount || 0;
   const totalInvestmentsBefore = investmentsBefore.reduce((s, i) => s + i.amount, 0);
   const totalReturnsBefore = investmentsBefore.reduce((s, i) => s + i.returnAmount, 0);
-  const totalExpensesBefore = expensesBefore.reduce((s, e) => s + e.amount, 0);
-  const totalAssetsBefore = assetsBefore.reduce((s, a) => s + a.purchaseValue, 0);
-  const totalOtherReceiptsBefore = incomesBefore.reduce((s, i) => s + i.amount, 0);
-
-  const principalReturnedBefore = investmentsBefore
-    .filter(i => i.status === 'CLOSED')
-    .reduce((s, i) => s + i.amount, 0);
-
+  const totalExpensesBefore = expensesBefore._sum.amount || 0;
+  const totalAssetsBefore = assetsBefore._sum.purchaseValue || 0;
+  const totalOtherReceiptsBefore = incomesBefore._sum.amount || 0;
+  const principalReturnedBefore = investmentsBefore.filter(i => i.status === 'CLOSED').reduce((s, i) => s + i.amount, 0);
   const openingBalance = totalContributionsBefore + totalReturnsBefore + principalReturnedBefore + totalOtherReceiptsBefore - totalInvestmentsBefore - totalExpensesBefore - totalAssetsBefore;
 
-  // During period
-  const exactFilter = getPaymentFilter(period, year, month, 'exact');
-  const paymentsInPeriod = await prisma.payment.findMany({
-    where: { ...exactFilter, status: 'PAID' },
-  });
-  const investmentsInPeriod = await prisma.investment.findMany({
-    where: { date: { gte: start, lte: end } },
-  });
-  const expensesInPeriod = await prisma.expense.findMany({
-    where: { date: { gte: start, lte: end } },
-  });
-  const assetsInPeriod = await prisma.fixedAsset.findMany({
-    where: { purchaseDate: { gte: start, lte: end } },
-  });
-  const incomesInPeriod = await prisma.income.findMany({
-    where: { date: { gte: start, lte: end } },
-  });
-
-  const monthlyContributions = paymentsInPeriod.reduce((s, p) => s + p.amount, 0);
+  const monthlyContributions = paymentsInPeriod._sum.amount || 0;
   const investmentReturns = investmentsInPeriod.reduce((s, i) => s + i.returnAmount, 0);
-  const otherReceiptsInPeriod = incomesInPeriod.reduce((s, i) => s + i.amount, 0);
+  const otherReceiptsInPeriod = incomesInPeriod._sum.amount || 0;
   const investmentsMade = investmentsInPeriod.reduce((s, i) => s + i.amount, 0);
-  const expensesPaid = expensesInPeriod.reduce((s, e) => s + e.amount, 0);
-  const assetPurchases = assetsInPeriod.reduce((s, a) => s + a.purchaseValue, 0);
-
-  // For closed investments, principal is returned (assuming it happens on 'date' since we lack a closedDate field)
-  const principalReturnedInPeriod = investmentsInPeriod
-    .filter(i => i.status === 'CLOSED')
-    .reduce((s, i) => s + i.amount, 0);
-    
+  const expensesPaid = expensesInPeriod._sum.amount || 0;
+  const assetPurchases = assetsInPeriod._sum.purchaseValue || 0;
+  const principalReturnedInPeriod = investmentsInPeriod.filter(i => i.status === 'CLOSED').reduce((s, i) => s + i.amount, 0);
   const closingBalance = openingBalance + monthlyContributions + investmentReturns + principalReturnedInPeriod + otherReceiptsInPeriod - investmentsMade - expensesPaid - assetPurchases;
 
   return {
     receipts: {
       openingCashBalance: Math.max(0, openingBalance),
-      monthlyContributions,
-      investmentReturns,
+      monthlyContributions, investmentReturns,
       otherReceipts: otherReceiptsInPeriod,
       totalReceipts: openingBalance + monthlyContributions + investmentReturns + principalReturnedInPeriod + otherReceiptsInPeriod,
     },
     payments: {
-      investmentsMade,
-      expensesPaid,
-      fixedAssetPurchases: assetPurchases,
+      investmentsMade, expensesPaid, fixedAssetPurchases: assetPurchases,
       otherPayments: 0,
       closingCashBalance: Math.max(0, closingBalance),
       totalPayments: investmentsMade + expensesPaid + assetPurchases + Math.max(0, closingBalance),
@@ -296,34 +340,22 @@ async function calculateReceiptPayment(period, year, month) {
 async function calculateFixedAssetsSchedule(period, year, month) {
   const { start, end } = getDateRange(period, year, month || 12);
   const periodMonths = period === 'monthly' ? 1 : 12;
-
-  const allAssets = await prisma.fixedAsset.findMany({
-    orderBy: { purchaseDate: 'asc' },
-  });
+  const allAssets = await prisma.fixedAsset.findMany({ orderBy: { purchaseDate: 'asc' } });
 
   const schedule = allAssets.map((asset) => {
-    // Opening value (value at start of period)
     const yearsBeforeStart = Math.max(0, (start.getTime() - asset.purchaseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
     const depBefore = Math.min(asset.purchaseValue * (asset.depreciationRate / 100) * yearsBeforeStart, asset.purchaseValue);
     const openingValue = asset.purchaseDate < start ? asset.purchaseValue - depBefore : 0;
-
     const addedDuringPeriod = (asset.purchaseDate >= start && asset.purchaseDate <= end) ? asset.purchaseValue : 0;
-
     const disposedDuringPeriod = (asset.isDisposed && asset.disposalDate && asset.disposalDate >= start && asset.disposalDate <= end) ? (asset.disposalValue || 0) : 0;
-
     const depForPeriod = asset.purchaseDate <= end && !asset.isDisposed
-      ? asset.purchaseValue * (asset.depreciationRate / 100) * (periodMonths / 12)
-      : 0;
-
+      ? asset.purchaseValue * (asset.depreciationRate / 100) * (periodMonths / 12) : 0;
     const closingValue = openingValue + addedDuringPeriod - disposedDuringPeriod - depForPeriod;
 
     return {
-      id: asset.id,
-      name: asset.name,
-      openingValue: Math.max(0, openingValue),
-      additions: addedDuringPeriod,
-      disposals: disposedDuringPeriod,
-      depreciation: depForPeriod,
+      id: asset.id, name: asset.name,
+      openingValue: Math.max(0, openingValue), additions: addedDuringPeriod,
+      disposals: disposedDuringPeriod, depreciation: depForPeriod,
       closingValue: Math.max(0, closingValue),
     };
   });
@@ -342,104 +374,24 @@ async function calculateFixedAssetsSchedule(period, year, month) {
   return { schedule, totals, period: { type: period, year, month } };
 }
 
-// ─── Per User P&L ──────────────────────────────────────────────
+// ─── Per User P&L (kept for single-user API calls) ──────────────
 async function calculateUserPnL(userId, period, year, month) {
-  const { start, end } = getDateRange(period, year, month || 12);
-
-  const activeUsersCount = await prisma.user.count({ where: { isActive: true } });
-
-  const exactFilter = getPaymentFilter(period, year, month, 'exact');
-  
-  // User's total contribution
-  const userPayments = await prisma.payment.findMany({
-    where: {
-      userId,
-      ...exactFilter,
-      status: 'PAID',
-    },
-  });
-  const userContribution = userPayments.reduce((s, p) => s + p.amount, 0);
-
-  // All contributions
-  const allPayments = await prisma.payment.findMany({
-    where: { ...exactFilter, status: 'PAID' },
-  });
-  const totalContributions = allPayments.reduce((s, p) => s + p.amount, 0);
-
-  // Income & Expenses for the period (same logic as income-expenditure)
-  const investments = await prisma.investment.findMany({
-    where: { date: { gte: start, lte: end } },
-  });
-  const generalIncomes = await prisma.income.findMany({
-    where: { date: { gte: start, lte: end } }
-  });
-  const totalIncome = investments.reduce((s, i) => s + i.returnAmount, 0) + generalIncomes.reduce((s, i) => s + i.amount, 0);
-
-  const expenses = await prisma.expense.findMany({
-    where: { date: { gte: start, lte: end } },
-  });
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-
-  const fixedAssets = await prisma.fixedAsset.findMany({
-    where: { purchaseDate: { lte: end }, isDisposed: false },
-  });
-  const periodMonths = period === 'monthly' ? 1 : 12;
-  const depreciation = fixedAssets.reduce((sum, asset) => {
-    return sum + (asset.purchaseValue * (asset.depreciationRate / 100) * (periodMonths / 12));
-  }, 0);
-
-  const netProfitLoss = totalIncome - totalExpenses - depreciation;
-
-  // Proportional share based on contribution for INCOME only (Gross Profit)
-  const sharePercentage = totalContributions > 0 ? (userContribution / totalContributions) * 100 : 0;
-  const autoProfitLoss = totalContributions > 0 ? (userContribution / totalContributions) * totalIncome : 0;
-  
-  // Equal share for EXPENSES
-  const userExpenseShare = activeUsersCount > 0 ? totalExpenses / activeUsersCount : 0;
-
-  // Manual profit for the user
-  const userProfits = await prisma.userProfit.findMany({
-    where: {
-      userId,
-      date: { gte: start, lte: end },
-    },
-  });
-  const manualProfit = userProfits.reduce((s, p) => s + p.amount, 0);
-
-  const userProfitLoss = autoProfitLoss + manualProfit;
-
-  return {
-    userId,
-    userContribution,
-    totalContributions,
-    sharePercentage,
-    totalIncome,
-    totalExpenses,
-    activeUsersCount,
-    userExpenseShare,
-    netProfitLoss,
-    autoProfitLoss,
-    manualProfit,
-    userProfitLoss,
-    period: { type: period, year, month },
-  };
+  const globalTotals = await getGlobalFinancialTotals(period, year, month);
+  return { ...calculateUserPnLFast(userId, globalTotals), period: { type: period, year, month } };
 }
 
-// ─── All Users P&L ─────────────────────────────────────────────
+// ─── All Users P&L (OPTIMIZED: single pass) ─────────────────────
 async function calculateAllUsersPnL(period, year, month) {
-  const users = await prisma.user.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true },
-  });
+  const [users, globalTotals] = await Promise.all([
+    prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+    getGlobalFinancialTotals(period, year, month),
+  ]);
 
-  const results = await Promise.all(
-    users.map(async (user) => {
-      const pnl = await calculateUserPnL(user.id, period, year, month);
-      return { ...pnl, userName: user.name };
-    })
-  );
-
-  return results;
+  return users.map(user => ({
+    ...calculateUserPnLFast(user.id, globalTotals),
+    userName: user.name,
+    period: { type: period, year, month },
+  }));
 }
 
 module.exports = {
@@ -449,4 +401,6 @@ module.exports = {
   calculateFixedAssetsSchedule,
   calculateUserPnL,
   calculateAllUsersPnL,
+  getGlobalFinancialTotals,
+  calculateUserPnLFast,
 };

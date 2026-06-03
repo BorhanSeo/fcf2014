@@ -1,83 +1,74 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
-const { calculateUserPnL } = require('../utils/reportCalculators');
+const { getGlobalFinancialTotals, calculateUserPnLFast, calculateUserPnL } = require('../utils/reportCalculators');
 
 const prisma = new PrismaClient();
 
-// GET /api/users — All users list (Admin)
+// GET /api/users — All users list (Admin) — OPTIMIZED: single pass global totals
 const getAllUsers = async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        phone: true,
-        avatar: true,
-        joinDate: true,
-        monthlyAmount: true,
-        isActive: true,
-        createdAt: true,
-        payments: {
-          where: { status: 'PAID' },
-          select: { amount: true, year: true, month: true }
-        }
-      },
-      orderBy: { name: 'asc' },
+    const now = new Date();
+
+    // Fetch users with their payments AND compute global totals — in parallel
+    const [users, globalTotals] = await Promise.all([
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          phone: true,
+          avatar: true,
+          joinDate: true,
+          monthlyAmount: true,
+          isActive: true,
+          createdAt: true,
+          payments: {
+            where: { status: 'PAID' },
+            select: { amount: true, year: true, month: true },
+          },
+        },
+        orderBy: { name: 'asc' },
+      }),
+      getGlobalFinancialTotals('all-time'),
+    ]);
+
+    const usersWithData = users.map((u) => {
+      // Use pre-computed global totals — zero extra DB queries
+      const pnl = calculateUserPnLFast(u.id, globalTotals);
+      const totalPaid = u.payments.reduce((s, p) => s + p.amount, 0);
+      const totalReceivable = Math.max(0, totalPaid + pnl.userProfitLoss - (pnl.userExpenseShare || 0));
+
+      // Calculate dues in memory (no extra queries needed — payments already fetched)
+      const joinDate = new Date(u.joinDate);
+      const paidMap = new Map();
+      u.payments.forEach(p => {
+        const key = `${p.year}-${p.month}`;
+        paidMap.set(key, (paidMap.get(key) || 0) + p.amount);
+      });
+
+      let totalDue = 0;
+      let startMonth = joinDate.getMonth();
+      let startYear = joinDate.getFullYear();
+
+      if (startYear < 2025 || (startYear === 2025 && startMonth < 8)) {
+        startYear = 2025;
+        startMonth = 8;
+      }
+
+      let current = new Date(startYear, startMonth, 1);
+      while (current <= now) {
+        const y = current.getFullYear();
+        const m = current.getMonth() + 1;
+        const paid = paidMap.get(`${y}-${m}`) || 0;
+        const dueAmount = Math.max(0, u.monthlyAmount - paid);
+        if (dueAmount > 0) totalDue += dueAmount;
+        current.setMonth(current.getMonth() + 1);
+      }
+
+      const { payments, ...userWithoutPayments } = u;
+      return { ...userWithoutPayments, totalReceivable, totalDue };
     });
-
-    const year = new Date().getFullYear();
-    const usersWithData = await Promise.all(
-      users.map(async (u) => {
-        const pnl = await calculateUserPnL(u.id, 'all-time');
-        const totalPaid = u.payments.reduce((s, p) => s + p.amount, 0);
-        const totalReceivable = Math.max(0, totalPaid + pnl.userProfitLoss - (pnl.userExpenseShare || 0));
-        
-        // Calculate Due
-        const joinDate = new Date(u.joinDate);
-        const now = new Date();
-        const paidMap = new Map();
-        u.payments.forEach(p => {
-          const key = `${p.year}-${p.month}`;
-          paidMap.set(key, (paidMap.get(key) || 0) + p.amount);
-        });
-
-        let totalDue = 0;
-        let startMonth = joinDate.getMonth();
-        let startYear = joinDate.getFullYear();
-        
-        // Start from September 2025 or later
-        if (startYear < 2025 || (startYear === 2025 && startMonth < 8)) {
-          startYear = 2025;
-          startMonth = 8; // September (0-indexed)
-        }
-
-        let current = new Date(startYear, startMonth, 1);
-        while (current <= now) {
-          const y = current.getFullYear();
-          const m = current.getMonth() + 1;
-          
-          let expected = u.monthlyAmount;
-          const paid = paidMap.get(`${y}-${m}`) || 0;
-          
-          let dueAmount = expected - paid;
-          if (dueAmount < 0) dueAmount = 0;
-
-          if (dueAmount > 0) {
-            totalDue += dueAmount;
-          }
-          current.setMonth(current.getMonth() + 1);
-        }
-        
-        const { payments, ...userWithoutPayments } = u;
-        return {
-          ...userWithoutPayments,
-          totalReceivable,
-          totalDue
-        };
-      })
-    );
 
     res.json({ users: usersWithData });
   } catch (error) {
