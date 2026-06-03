@@ -1,0 +1,100 @@
+// FCF 2014 — Database Schema
+// SQLite (Development) + Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          String    @default("USER")
+  phone         String?
+  avatar        String?
+  joinDate      DateTime  @default(now())
+  monthlyAmount Float     @default(0)
+  isActive      Boolean   @default(true)
+  payments      Payment[]
+  profits       UserProfit[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year      Int
+  month     Int           // 1–12
+  amount    Float
+  paidDate  DateTime
+  method    String        @default("CASH") // CASH, BKASH, BANK, NAGAD, OTHER
+  note      String?
+  status    String        @default("PAID")
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, year, month]) // Prevent duplicate entries
+}
+
+model Investment {
+  id           String           @id @default(cuid())
+  title        String
+  amount       Float
+  date         DateTime
+  returnAmount Float            @default(0)
+  type         String?
+  status       String           @default("ACTIVE")
+  note         String?
+  createdAt    DateTime         @default(now())
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  title     String
+  amount    Float
+  date      DateTime
+  category  String
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model FixedAsset {
+  id               String    @id @default(cuid())
+  name             String
+  purchaseValue    Float
+  purchaseDate     DateTime
+  depreciationRate Float     @default(0)
+  currentValue     Float
+  isDisposed       Boolean   @default(false)
+  disposalDate     DateTime?
+  disposalValue    Float?
+  note             String?
+  createdAt        DateTime  @default(now())
+}
+
+model UserProfit {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Float
+  date      DateTime
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model Income {
+  id        String   @id @default(cuid())
+  source    String
+  amount    Float
+  date      DateTime
+  category  String
+  note      String?
+  createdAt DateTime @default(now())
+}
