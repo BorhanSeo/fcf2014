@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, Users, CreditCard, TrendingUp, Receipt,
   FileText, LogOut, PiggyBank, ChevronLeft, ChevronRight, Calendar,
-  Wallet, Landmark
+  Wallet, Landmark, Settings
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -22,10 +22,11 @@ export default function Sidebar() {
     { to: '/admin/dues-status', icon: Calendar, label: 'মাসিক বকেয়া' },
     { to: '/admin/users', icon: Users, label: 'সদস্য ব্যবস্থাপনা' },
     { to: '/admin/investments', icon: TrendingUp, label: 'বিনিয়োগ' },
-    { to: '/admin/incomes', icon: Wallet, label: 'আয় / মুনাফা' },
+    { to: '/admin/incomes', icon: Wallet, label: 'আয় / মুনাফা' },
     { to: '/admin/expenses', icon: Receipt, label: 'খরচ' },
     { to: '/admin/assets', icon: Landmark, label: 'সম্পদ' },
     { to: '/admin/reports', icon: FileText, label: 'রিপোর্ট' },
+    { to: '/admin/settings', icon: Settings, label: 'সেটিংস' },
   ];
 
   const userLinks = [

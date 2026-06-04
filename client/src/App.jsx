@@ -32,6 +32,7 @@ const Income           = lazy(() => import('./pages/admin/Income'));
 const AssetManager     = lazy(() => import('./pages/admin/AssetManager'));
 const ReportsContainer = lazy(() => import('./pages/admin/reports/ReportsContainer'));
 const DuesStatus       = lazy(() => import('./pages/admin/DuesStatus'));
+const AdminSettings    = lazy(() => import('./pages/admin/AdminSettings'));
 
 function App() {
   return (
@@ -62,6 +63,7 @@ function App() {
                 <Route path="/admin/assets" element={<AssetManager />} />
                 <Route path="/admin/reports" element={<ReportsContainer />} />
                 <Route path="/admin/dues-status" element={<DuesStatus />} />
+                <Route path="/admin/settings" element={<AdminSettings />} />
               </Route>
 
             </Route>
