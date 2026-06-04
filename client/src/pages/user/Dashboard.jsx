@@ -156,8 +156,7 @@ export default function Dashboard() {
                 {data.pnl?.userProfitLoss >= 0 ? '+' : ''}{formatCurrency(data.pnl?.userProfitLoss || 0)}
               </h3>
               <p className="text-[10px] text-text-secondary mt-1 font-bangla">
-                শেয়ার: {(data.pnl?.sharePercentage || 0).toFixed(2)}%
-                {data.pnl && ` (অটো: ${formatCurrency(data.pnl.autoProfitLoss || 0)} |  ম্যানু: ${formatCurrency(data.pnl.manualProfit || 0)})`}
+                {data.pnl && `(অটো: ${formatCurrency(data.pnl.autoProfitLoss || 0)} |  ম্যানু: ${formatCurrency(data.pnl.manualProfit || 0)})`}
               </p>
             </div>
           </CardBody>
