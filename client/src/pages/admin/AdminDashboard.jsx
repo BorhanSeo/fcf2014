@@ -209,20 +209,20 @@ export default function AdminDashboard() {
                       </span>
                       {p.note && <p className="text-[10px] text-text-muted mt-1 truncate max-w-[120px]" title={p.note}>{p.note}</p>}
                     </td>
-                    <td className="px-5 py-3 text-right space-x-2">
+                    <td className="px-5 py-3 text-right flex items-center justify-end gap-2">
                       <button 
                         onClick={() => handleApprove(p.id)}
-                        className="p-1.5 bg-success/10 text-success hover:bg-success hover:text-white rounded transition-colors"
-                        title="অনুমোদন করুন"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-success/10 text-success hover:bg-success hover:text-white rounded-lg transition-colors text-sm font-bangla font-medium"
                       >
-                        <CheckCircle className="w-5 h-5" />
+                        <CheckCircle className="w-4 h-4" />
+                        <span>অনুমোদন</span>
                       </button>
                       <button 
                         onClick={() => handleReject(p.id)}
-                        className="p-1.5 bg-danger/10 text-danger hover:bg-danger hover:text-white rounded transition-colors"
-                        title="বাতিল করুন"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-danger/10 text-danger hover:bg-danger hover:text-white rounded-lg transition-colors text-sm font-bangla font-medium"
                       >
-                        <XCircle className="w-5 h-5" />
+                        <XCircle className="w-4 h-4" />
+                        <span>বাতিল</span>
                       </button>
                     </td>
                   </tr>

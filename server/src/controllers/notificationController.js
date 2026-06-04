@@ -6,7 +6,8 @@ const getMyNotifications = async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role; 
 
-    const where = role === 'ADMIN' 
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    const where = isAdmin 
       ? { OR: [{ userId }, { userId: null }] }
       : { userId };
 
@@ -46,7 +47,8 @@ const markAllAsRead = async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
     
-    const where = role === 'ADMIN' 
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    const where = isAdmin 
       ? { OR: [{ userId }, { userId: null }], isRead: false }
       : { userId, isRead: false };
 
