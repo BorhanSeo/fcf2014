@@ -86,54 +86,53 @@ export default function Dashboard() {
           <h3 className="text-sm font-semibold text-text-secondary font-bangla px-1">গ্রুপের আর্থিক অবস্থা (Group Financials)</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Members Fund Card */}
-            <Card className="border-l-4 border-l-info shadow-sm bg-white">
-              <CardBody className="p-5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center flex-shrink-0 text-info">
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/40 shadow-sm overflow-hidden">
+              <div className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 text-blue-700">
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-text-muted font-bangla">মোট মেম্বার ফান্ড</p>
-                  <h3 className="text-2xl font-bold text-text-primary mt-1">
+                  <p className="text-xs font-semibold text-blue-800/80 font-bangla">মোট মেম্বার ফান্ড</p>
+                  <h3 className="text-2xl font-bold text-blue-900 mt-1">
                     {formatCurrency(data.fcfTotals.membersFund)}
                   </h3>
                 </div>
-              </CardBody>
-            </Card>
+              </div>
+            </div>
 
             {/* Cumulative Income Card */}
-            <Card className="border-l-4 border-l-success shadow-sm bg-white">
-              <CardBody className="p-5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0 text-success">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 shadow-sm overflow-hidden">
+              <div className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-700">
                   <TrendingUp className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-text-muted font-bangla">মোট আয়</p>
-                  <h3 className="text-2xl font-bold text-success mt-1">
+                  <p className="text-xs font-semibold text-emerald-800/80 font-bangla">মোট আয়</p>
+                  <h3 className="text-2xl font-bold text-emerald-900 mt-1">
                     +{formatCurrency(data.fcfTotals.cumulativeIncome)}
                   </h3>
                 </div>
-              </CardBody>
-            </Card>
+              </div>
+            </div>
 
             {/* Cumulative Expenses Card */}
-            <Card className="border-l-4 border-l-danger shadow-sm bg-white">
-              <CardBody className="p-5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center flex-shrink-0 text-danger">
+            <div className="rounded-2xl border border-rose-100 bg-rose-50/40 shadow-sm overflow-hidden">
+              <div className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0 text-rose-700">
                   <TrendingDown className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-text-muted font-bangla">মোট খরচ</p>
-                  <h3 className="text-2xl font-bold text-danger mt-1">
+                  <p className="text-xs font-semibold text-rose-800/80 font-bangla">মোট খরচ</p>
+                  <h3 className="text-2xl font-bold text-rose-900 mt-1">
                     -{formatCurrency(data.fcfTotals.cumulativeExpenses)}
                   </h3>
                 </div>
-              </CardBody>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Personal Summary Section */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-text-secondary font-bangla px-1">আপনার ব্যক্তিগত সারসংক্ষেপ (Personal Summary)</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
