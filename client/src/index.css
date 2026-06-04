@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Parkinsans:wght@300..800&family=Brygada+1918:ital,wght@0,400..700;1,400..700&family=Hind+Siliguri:wght@300;400;500;600;700&family=Baloo+Da+2:wght@400..800&display=swap');
+@import "tailwindcss";
 
 @theme {
   --color-primary: #FE1B01;
