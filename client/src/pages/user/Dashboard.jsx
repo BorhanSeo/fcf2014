@@ -5,7 +5,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/dateHelpers';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { Wallet, AlertCircle, TrendingUp, TrendingDown, Loader2, PiggyBank, Landmark } from 'lucide-react';
+import { Wallet, AlertCircle, TrendingUp, TrendingDown, Loader2, PiggyBank, Landmark, Users } from 'lucide-react';
 
 
 
@@ -67,7 +67,7 @@ export default function Dashboard() {
 
       {/* Total FCF Fund Banner */}
       {data.fcfTotals && (
-        <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 text-white shadow-lg shadow-primary/20 flex flex-col xl:flex-row items-center justify-between">
+        <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 text-white shadow-lg shadow-primary/20 flex items-center justify-between">
           <div className="flex items-center gap-5">
             <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
               <Landmark className="w-8 h-8 text-white" />
@@ -77,106 +77,146 @@ export default function Dashboard() {
               <h2 className="text-3xl md:text-4xl font-bold mt-1 tracking-tight">{formatCurrency(data.fcfTotals.totalFCFFund)}</h2>
             </div>
           </div>
-          <div className="mt-5 xl:mt-0 flex flex-wrap gap-4 md:gap-6 text-sm font-bangla bg-black/10 px-6 py-4 rounded-xl backdrop-blur-sm border border-white/10">
-            <div>
-              <p className="text-primary-100 mb-1">মোট মেম্বার ফান্ড</p>
-              <p className="font-bold text-lg">{formatCurrency(data.fcfTotals.membersFund)}</p>
-            </div>
-            <div className="w-px bg-white/20 hidden md:block" />
-            <div>
-              <p className="text-primary-100 mb-1">মোট আয়</p>
-              <p className="font-bold text-lg text-green-300">+{formatCurrency(data.fcfTotals.cumulativeIncome)}</p>
-            </div>
-            <div className="w-px bg-white/20 hidden md:block" />
-            <div>
-              <p className="text-primary-100 mb-1">মোট খরচ</p>
-              <p className="font-bold text-lg text-red-300">-{formatCurrency(data.fcfTotals.cumulativeExpenses)}</p>
-            </div>
+        </div>
+      )}
+
+      {/* Group Fund Details Cards */}
+      {data.fcfTotals && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-text-secondary font-bangla px-1">গ্রুপের আর্থিক অবস্থা (Group Financials)</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Members Fund Card */}
+            <Card className="border-l-4 border-l-info shadow-sm bg-white">
+              <CardBody className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center flex-shrink-0 text-info">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-text-muted font-bangla">মোট মেম্বার ফান্ড</p>
+                  <h3 className="text-2xl font-bold text-text-primary mt-1">
+                    {formatCurrency(data.fcfTotals.membersFund)}
+                  </h3>
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Cumulative Income Card */}
+            <Card className="border-l-4 border-l-success shadow-sm bg-white">
+              <CardBody className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0 text-success">
+                  <TrendingUp className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-text-muted font-bangla">মোট আয়</p>
+                  <h3 className="text-2xl font-bold text-success mt-1">
+                    +{formatCurrency(data.fcfTotals.cumulativeIncome)}
+                  </h3>
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Cumulative Expenses Card */}
+            <Card className="border-l-4 border-l-danger shadow-sm bg-white">
+              <CardBody className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center flex-shrink-0 text-danger">
+                  <TrendingDown className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-text-muted font-bangla">মোট খরচ</p>
+                  <h3 className="text-2xl font-bold text-danger mt-1">
+                    -{formatCurrency(data.fcfTotals.cumulativeExpenses)}
+                  </h3>
+                </div>
+              </CardBody>
+            </Card>
           </div>
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Paid */}
-        <Card className="border-l-4 border-l-secondary shadow-sm">
-          <CardBody className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
-              <Wallet className="w-6 h-6 text-secondary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">মোট জমা</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(data.summary.totalPaid)}</h3>
-            </div>
-          </CardBody>
-        </Card>
+      {/* Personal Summary Section */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-text-secondary font-bangla px-1">আপনার ব্যক্তিগত সারসংক্ষেপ (Personal Summary)</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Total Paid */}
+          <Card className="border-l-4 border-l-secondary shadow-sm">
+            <CardBody className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                <Wallet className="w-6 h-6 text-secondary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-text-muted font-bangla">মোট জমা</p>
+                <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(data.summary.totalPaid)}</h3>
+              </div>
+            </CardBody>
+          </Card>
 
-        {/* Total Due */}
-        <Card className="border-l-4 border-l-danger shadow-sm">
-          <CardBody className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="w-6 h-6 text-danger" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">বকেয়া পরিমাণ</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(data.totalDueAmount)}</h3>
-            </div>
-          </CardBody>
-        </Card>
+          {/* Total Due */}
+          <Card className="border-l-4 border-l-danger shadow-sm">
+            <CardBody className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-danger" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-text-muted font-bangla">বকেয়া পরিমাণ</p>
+                <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(data.totalDueAmount)}</h3>
+              </div>
+            </CardBody>
+          </Card>
 
-        {/* Expense Share */}
-        <Card className="border-l-4 border-l-warning shadow-sm">
-          <CardBody className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0 text-warning">
-              <TrendingDown className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">আপনার অংশের খরচ</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">
-                {formatCurrency(data.pnl?.userExpenseShare || 0)}
-              </h3>
-              {data.pnl && (
+          {/* Expense Share */}
+          <Card className="border-l-4 border-l-warning shadow-sm">
+            <CardBody className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0 text-warning">
+                <TrendingDown className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-text-muted font-bangla">আপনার অংশের খরচ</p>
+                <h3 className="text-2xl font-bold text-text-primary mt-1">
+                  {formatCurrency(data.pnl?.userExpenseShare || 0)}
+                </h3>
+                {data.pnl && (
+                  <p className="text-[10px] text-text-secondary mt-1 font-bangla">
+                    মোট {data.pnl.activeUsersCount || 1} জনের মধ্যে সমবণ্টন
+                  </p>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Profit Share */}
+          <Card className="border-l-4 border-l-primary shadow-sm bg-primary/5">
+            <CardBody className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-text-muted font-bangla">সম্ভাব্য লাভ/ক্ষতি</p>
+                <h3 className={`text-xl font-bold mt-1 ${data.pnl?.userProfitLoss >= 0 ? 'text-secondary' : 'text-danger'}`}>
+                  {data.pnl?.userProfitLoss >= 0 ? '+' : ''}{formatCurrency(data.pnl?.userProfitLoss || 0)}
+                </h3>
                 <p className="text-[10px] text-text-secondary mt-1 font-bangla">
-                  মোট {data.pnl.activeUsersCount || 1} জনের মধ্যে সমবণ্টন
+                  {data.pnl && `(অটো: ${formatCurrency(data.pnl.autoProfitLoss || 0)} |  ম্যানু: ${formatCurrency(data.pnl.manualProfit || 0)})`}
                 </p>
-              )}
-            </div>
-          </CardBody>
-        </Card>
+              </div>
+            </CardBody>
+          </Card>
 
-        {/* Profit Share */}
-        <Card className="border-l-4 border-l-primary shadow-sm bg-primary/5">
-          <CardBody className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <TrendingUp className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">সম্ভাব্য লাভ/ক্ষতি</p>
-              <h3 className={`text-xl font-bold mt-1 ${data.pnl?.userProfitLoss >= 0 ? 'text-secondary' : 'text-danger'}`}>
-                {data.pnl?.userProfitLoss >= 0 ? '+' : ''}{formatCurrency(data.pnl?.userProfitLoss || 0)}
-              </h3>
-              <p className="text-[10px] text-text-secondary mt-1 font-bangla">
-                {data.pnl && `(অটো: ${formatCurrency(data.pnl.autoProfitLoss || 0)} |  ম্যানু: ${formatCurrency(data.pnl.manualProfit || 0)})`}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Total Receivable */}
-        <Card className="border-l-4 border-l-success shadow-sm">
-          <CardBody className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0 text-success">
-              <PiggyBank className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">সর্বমোট পাওনা</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">
-                {formatCurrency(data.summary.totalPaid + (data.pnl?.userProfitLoss || 0) - (data.pnl?.userExpenseShare || 0))}
-              </h3>
-              <p className="text-xs text-text-secondary mt-1 font-bangla">জমা + লাভ - খরচ</p>
-            </div>
-          </CardBody>
-        </Card>
+          {/* Total Receivable */}
+          <Card className="border-l-4 border-l-success shadow-sm">
+            <CardBody className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0 text-success">
+                <PiggyBank className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-text-muted font-bangla">সর্বমোট পাওনা</p>
+                <h3 className="text-2xl font-bold text-text-primary mt-1">
+                  {formatCurrency(data.summary.totalPaid + (data.pnl?.userProfitLoss || 0) - (data.pnl?.userExpenseShare || 0))}
+                </h3>
+                <p className="text-xs text-text-secondary mt-1 font-bangla">জমা + লাভ - খরচ</p>
+              </div>
+            </CardBody>
+          </Card>
+        </div>
       </div>
 
       {/* Recent Activity & Next Due */}
