@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// Detect if running inside Capacitor (native mobile webview)
+const isCapacitor = typeof window !== 'undefined' && !!window.Capacitor;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: import.meta.env.VITE_API_URL || (isCapacitor ? 'https://fcf2014.vercel.app/api' : '/api'),
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000, // 15 sec timeout — prevents infinite spinning
 });
