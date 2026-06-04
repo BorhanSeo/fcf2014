@@ -12,6 +12,10 @@ export default function PaymentHistory() {
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState('');
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  
   // Add payment modal state
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,6 +43,7 @@ export default function PaymentHistory() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchPayments();
   }, [year]);
 
@@ -56,6 +61,13 @@ export default function PaymentHistory() {
       setIsSubmitting(false);
     }
   };
+
+  // Pagination logic
+  const totalPages = Math.ceil(payments.length / itemsPerPage);
+  const currentPayments = payments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -119,8 +131,8 @@ export default function PaymentHistory() {
                     <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
                   </td>
                 </tr>
-              ) : payments.length > 0 ? (
-                payments.map((payment) => (
+              ) : currentPayments.length > 0 ? (
+                currentPayments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-surface-hover transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -151,6 +163,34 @@ export default function PaymentHistory() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-surface-alt/30">
+            <p className="text-sm text-text-muted font-bangla">
+              মোট {payments.length} টির মধ্যে {((currentPage - 1) * itemsPerPage) + 1} থেকে {Math.min(currentPage * itemsPerPage, payments.length)} দেখাচ্ছে
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm font-bangla border border-border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface-hover transition-colors text-text-secondary"
+              >
+                পূর্ববর্তী
+              </button>
+              <span className="text-sm font-semibold text-primary px-2">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm font-bangla border border-border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface-hover transition-colors text-text-secondary"
+              >
+                পরবর্তী
+              </button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Mobile Floating Action Button (FAB) */}
