@@ -142,7 +142,8 @@ function calculateUserPnLFast(userId, globalTotals) {
   const manualProfit = userManualProfitMap[userId] || 0;
 
   const sharePercentage = totalContributions > 0 ? (userContribution / totalContributions) * 100 : 0;
-  const autoProfitLoss = totalContributions > 0 ? (userContribution / totalContributions) * totalIncome : 0;
+  const autoProfitLoss = activeUsersCount > 0 ? totalIncome / activeUsersCount : 0;
+
   const userExpenseShare = activeUsersCount > 0 ? totalExpenses / activeUsersCount : 0;
   const netProfitLoss = totalIncome - totalExpenses - depreciation;
   const userProfitLoss = autoProfitLoss + manualProfit;
