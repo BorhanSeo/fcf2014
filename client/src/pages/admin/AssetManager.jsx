@@ -122,7 +122,7 @@ export default function AssetManager() {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-surface-alt/50 border-b border-border">
                 <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla">তারিখ</th>
