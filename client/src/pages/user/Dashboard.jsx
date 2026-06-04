@@ -5,7 +5,8 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/dateHelpers';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { Wallet, AlertCircle, TrendingUp, TrendingDown, CalendarCheck, Loader2, PiggyBank } from 'lucide-react';
+import { Wallet, AlertCircle, TrendingUp, TrendingDown, Loader2, PiggyBank } from 'lucide-react';
+
 
 
 export default function Dashboard() {
@@ -53,8 +54,6 @@ export default function Dashboard() {
     );
   }
 
-  const latestPayment = data.payments.find(p => p.status === 'PAID');
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -65,7 +64,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Total Paid */}
         <Card className="border-l-4 border-l-secondary shadow-sm">
           <CardBody className="p-5 flex items-center gap-4">
@@ -88,24 +87,6 @@ export default function Dashboard() {
             <div>
               <p className="text-sm font-medium text-text-muted font-bangla">বকেয়া পরিমাণ</p>
               <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(data.totalDueAmount)}</h3>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Latest Payment */}
-        <Card className="border-l-4 border-l-info shadow-sm">
-          <CardBody className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center flex-shrink-0">
-              <CalendarCheck className="w-6 h-6 text-info" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">সর্বশেষ পেমেন্ট</p>
-              <h3 className="text-xl font-bold text-text-primary mt-1">
-                {latestPayment ? formatCurrency(latestPayment.amount) : '৳ 0'}
-              </h3>
-              {latestPayment && (
-                <p className="text-xs text-text-secondary mt-1">{formatDateShort(latestPayment.paidDate)}</p>
-              )}
             </div>
           </CardBody>
         </Card>
@@ -143,7 +124,7 @@ export default function Dashboard() {
               </h3>
               <p className="text-[10px] text-text-secondary mt-1 font-bangla">
                 শেয়ার: {(data.pnl?.sharePercentage || 0).toFixed(2)}%
-                {data.pnl && ` (অটো: ${formatCurrency(data.pnl.autoProfitLoss || 0)} | ম্যানু: ${formatCurrency(data.pnl.manualProfit || 0)})`}
+                {data.pnl && ` (অটো: ${formatCurrency(data.pnl.autoProfitLoss || 0)} |  ম্যানু: ${formatCurrency(data.pnl.manualProfit || 0)})`}
               </p>
             </div>
           </CardBody>
