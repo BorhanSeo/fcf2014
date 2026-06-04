@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const bcrypt = require('bcryptjs');
+const cache = require('../utils/cache');
 const { getGlobalFinancialTotals, calculateUserPnLFast, calculateUserPnL } = require('../utils/reportCalculators');
 
 // GET /api/users — All users list (Admin) — OPTIMIZED: single pass global totals
@@ -112,6 +113,7 @@ const createUser = async (req, res) => {
       },
     });
 
+    cache.invalidateAll();
     res.status(201).json({ message: 'ব্যবহারকারী সফলভাবে তৈরি হয়েছে', user });
   } catch (error) {
     console.error('CreateUser error:', error);
@@ -190,6 +192,7 @@ const updateUser = async (req, res) => {
       },
     });
 
+    cache.invalidateAll();
     res.json({ message: 'ব্যবহারকারী আপডেট হয়েছে', user });
   } catch (error) {
     console.error('UpdateUser error:', error);
@@ -212,6 +215,7 @@ const toggleUser = async (req, res) => {
       select: { id: true, name: true, isActive: true },
     });
 
+    cache.invalidateAll();
     res.json({
       message: updatedUser.isActive ? 'অ্যাকাউন্ট সক্রিয় করা হয়েছে' : 'অ্যাকাউন্ট নিষ্ক্রিয় করা হয়েছে',
       user: updatedUser,

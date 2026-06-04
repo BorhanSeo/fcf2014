@@ -110,9 +110,8 @@ const getAdminDashboard = async (req, res) => {
         select: {
           id: true, name: true, monthlyAmount: true, joinDate: true, isActive: true,
           payments: {
-            where: { year, status: 'PAID' },
-            orderBy: [{ month: 'asc' }],
-            select: { month: true, amount: true, status: true },
+            where: { status: 'PAID' },
+            select: { year: true, month: true, amount: true, status: true },
           },
         },
         orderBy: { name: 'asc' },
@@ -141,11 +140,11 @@ const getAdminDashboard = async (req, res) => {
       while (current <= now) {
         const y = current.getFullYear();
         const m = current.getMonth() + 1;
-        const paid = u.payments.find(p => p.month === m)?.amount || 0;
-        // Only count dues for the selected year scope
-        if (y === year || year === 0) {
-          totalDue += Math.max(0, u.monthlyAmount - paid);
-        }
+        const paid = u.payments.find(p => p.year === y && p.month === m)?.amount || 0;
+        
+        // Count all lifetime dues up to the current month
+        totalDue += Math.max(0, u.monthlyAmount - paid);
+        
         current.setMonth(current.getMonth() + 1);
       }
 

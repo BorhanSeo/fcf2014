@@ -280,6 +280,134 @@ const getMyDues = async (req, res) => {
   }
 };
 
+// POST /api/payments/submit — User submits a payment
+const submitPayment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { year, month, amount, method, note } = req.body;
+
+    if (!year || !month || !amount) {
+      return res.status(400).json({ message: 'বছর, মাস ও পরিমাণ আবশ্যক' });
+    }
+
+    const existing = await prisma.payment.findUnique({
+      where: { userId_year_month: { userId, year: parseInt(year), month: parseInt(month) } },
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: `আপনার ${year} সালের ${month} মাসের পেমেন্ট ইতিমধ্যে জমা বা অপেক্ষমান আছে` });
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        userId,
+        year: parseInt(year),
+        month: parseInt(month),
+        amount: parseFloat(amount),
+        paidDate: new Date(),
+        method: method || 'CASH',
+        note: note || null,
+        status: 'PENDING',
+      },
+      include: { user: { select: { name: true } } },
+    });
+
+    // Notify Admins
+    await prisma.notification.create({
+      data: {
+        userId: null, // To all admins
+        title: 'নতুন পেমেন্ট রিকোয়েস্ট',
+        message: `${payment.user.name} ${year} সালের ${month} মাসের জন্য ৳${amount} পেমেন্ট সাবমিট করেছেন।`,
+        type: 'PAYMENT_PENDING',
+      }
+    });
+
+    cache.invalidateAll();
+    res.status(201).json({ message: 'পেমেন্ট অনুমোদনের জন্য পাঠানো হয়েছে', payment });
+  } catch (error) {
+    console.error('SubmitPayment error:', error);
+    res.status(500).json({ message: 'সার্ভার এরর' });
+  }
+};
+
+// POST /api/payments/:id/approve — Admin approves payment
+const approvePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const payment = await prisma.payment.findUnique({ where: { id }, include: { user: true } });
+    if (!payment) return res.status(404).json({ message: 'পেমেন্ট পাওয়া যায়নি' });
+
+    if (payment.status === 'PAID') {
+      return res.status(400).json({ message: 'পেমেন্ট ইতিমধ্যে অনুমোদিত' });
+    }
+
+    const updatedPayment = await prisma.payment.update({
+      where: { id },
+      data: { status: 'PAID' },
+    });
+
+    // Notify User
+    await prisma.notification.create({
+      data: {
+        userId: payment.userId,
+        title: 'পেমেন্ট অনুমোদিত',
+        message: `আপনার ${payment.year} সালের ${payment.month} মাসের ৳${payment.amount} পেমেন্টটি অনুমোদিত হয়েছে।`,
+        type: 'PAYMENT_APPROVED',
+      }
+    });
+
+    cache.invalidateAll();
+    res.json({ message: 'পেমেন্ট অনুমোদিত হয়েছে', payment: updatedPayment });
+  } catch (error) {
+    console.error('ApprovePayment error:', error);
+    res.status(500).json({ message: 'সার্ভার এরর' });
+  }
+};
+
+// POST /api/payments/:id/reject — Admin rejects payment
+const rejectPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const payment = await prisma.payment.findUnique({ where: { id } });
+    if (!payment) return res.status(404).json({ message: 'পেমেন্ট পাওয়া যায়নি' });
+
+    await prisma.payment.delete({ where: { id } });
+
+    // Notify User
+    await prisma.notification.create({
+      data: {
+        userId: payment.userId,
+        title: 'পেমেন্ট বাতিল',
+        message: `আপনার ${payment.year} সালের ${payment.month} মাসের ৳${payment.amount} পেমেন্টটি বাতিল করা হয়েছে। সঠিক তথ্য দিয়ে আবার চেষ্টা করুন।`,
+        type: 'PAYMENT_REJECTED',
+      }
+    });
+
+    cache.invalidateAll();
+    res.json({ message: 'পেমেন্ট বাতিল করা হয়েছে' });
+  } catch (error) {
+    console.error('RejectPayment error:', error);
+    res.status(500).json({ message: 'সার্ভার এরর' });
+  }
+};
+
+// GET /api/payments/pending — Get all pending payments (Admin)
+const getPendingPayments = async (req, res) => {
+  try {
+    const pendingPayments = await prisma.payment.findMany({
+      where: { status: 'PENDING' },
+      include: { user: { select: { name: true, phone: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ pendingPayments });
+  } catch (error) {
+    console.error('GetPendingPayments error:', error);
+    res.status(500).json({ message: 'সার্ভার এরর' });
+  }
+};
+
 module.exports = {
   getMyPayments,
   getUserPayments,
@@ -289,4 +417,8 @@ module.exports = {
   deletePayment,
   getPaymentSummary,
   getMyDues,
+  submitPayment,
+  approvePayment,
+  rejectPayment,
+  getPendingPayments,
 };

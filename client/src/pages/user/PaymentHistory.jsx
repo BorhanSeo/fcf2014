@@ -4,13 +4,24 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort, getMonthName, getYearOptions } from '../../utils/dateHelpers';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { Loader2, Filter } from 'lucide-react';
+import { Loader2, Filter, Plus, X } from 'lucide-react';
 
 export default function PaymentHistory() {
   const [payments, setPayments] = useState([]);
   const [summary, setSummary] = useState({ totalPaid: 0, totalDue: 0, count: 0 });
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState('');
+  
+  // Add payment modal state
+  const [showModal, setShowModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    year: new Date().getFullYear().toString(),
+    month: (new Date().getMonth() + 1).toString(),
+    amount: '',
+    method: 'CASH',
+    note: ''
+  });
 
   const years = getYearOptions(2020);
 
@@ -31,6 +42,21 @@ export default function PaymentHistory() {
     fetchPayments();
   }, [year]);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      await api.post('/payments/submit', formData);
+      setShowModal(false);
+      setFormData({ ...formData, amount: '', note: '' });
+      fetchPayments();
+    } catch (error) {
+      alert(error.response?.data?.message || 'পেমেন্ট যোগ করতে সমস্যা হয়েছে');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -39,18 +65,28 @@ export default function PaymentHistory() {
           <p className="text-sm text-text-secondary font-bangla mt-1">আপনার সকল পেমেন্টের তালিকা</p>
         </div>
 
-        <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-border shadow-sm">
-          <Filter className="w-5 h-5 text-text-muted ml-2" />
-          <select
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="bg-transparent border-none focus:ring-0 text-sm font-bangla cursor-pointer pr-8"
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl transition-colors font-bangla text-sm shadow-sm"
           >
-            <option value="">সব বছর</option>
-            {years.map(y => (
-              <option key={y} value={y}>{y} সাল</option>
-            ))}
-          </select>
+            <Plus className="w-4 h-4" />
+            পেমেন্ট যোগ করুন
+          </button>
+          
+          <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-border shadow-sm">
+            <Filter className="w-5 h-5 text-text-muted ml-2" />
+            <select
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              className="bg-transparent border-none focus:ring-0 text-sm font-bangla cursor-pointer pr-8"
+            >
+              <option value="">সব বছর</option>
+              {years.map(y => (
+                <option key={y} value={y}>{y} সাল</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -116,6 +152,106 @@ export default function PaymentHistory() {
           </table>
         </div>
       </Card>
+
+      {/* Add Payment Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-5 border-b border-border bg-surface-alt/30">
+              <h2 className="text-xl font-bold font-bangla text-text-primary">নতুন পেমেন্ট যোগ করুন</h2>
+              <button 
+                onClick={() => setShowModal(false)}
+                className="text-text-muted hover:text-danger transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-text-secondary font-bangla">বছর</label>
+                  <select 
+                    value={formData.year}
+                    onChange={(e) => setFormData({...formData, year: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla"
+                    required
+                  >
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-text-secondary font-bangla">মাস</label>
+                  <select 
+                    value={formData.month}
+                    onChange={(e) => setFormData({...formData, month: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla"
+                    required
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                      <option key={m} value={m}>{getMonthName(m)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary font-bangla">পরিমাণ (৳)</label>
+                <input 
+                  type="number"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  placeholder="যেমন: 500"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary font-bangla">পেমেন্ট মেথড</label>
+                <select 
+                  value={formData.method}
+                  onChange={(e) => setFormData({...formData, method: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla"
+                >
+                  <option value="CASH">ক্যাশ</option>
+                  <option value="BKASH">বিকাশ</option>
+                  <option value="NAGAD">নগদ</option>
+                  <option value="BANK">ব্যাংক</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary font-bangla">নোট (ঐচ্ছিক)</label>
+                <input 
+                  type="text"
+                  value={formData.note}
+                  onChange={(e) => setFormData({...formData, note: e.target.value})}
+                  placeholder="যেমন: মাসিক চাঁদা"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla"
+                />
+              </div>
+              
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-border text-text-secondary font-medium font-bangla hover:bg-surface-hover transition-colors"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white font-medium font-bangla hover:bg-primary/90 transition-colors flex justify-center items-center"
+                >
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'সাবমিট করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

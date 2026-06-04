@@ -104,3 +104,16 @@ model Setting {
   key   String @id
   value String
 }
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?  // null means broadcast/admin notification
+  title     String
+  message   String
+  type      String   // e.g., 'PAYMENT_PENDING', 'PAYMENT_APPROVED', 'PAYMENT_REJECTED'
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Optional relation if userId is guaranteed to be valid, but nullable is fine without strict relation
+  // user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

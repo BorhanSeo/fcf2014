@@ -3,8 +3,9 @@ import api from '../../utils/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getYearOptions } from '../../utils/dateHelpers';
 import { Card, CardBody } from '../../components/ui/Card';
-import { Landmark, Users, TrendingUp, TrendingDown } from 'lucide-react';
+import { Landmark, Users, TrendingUp, TrendingDown, CheckCircle, XCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { getMonthName, formatDateShort } from '../../utils/dateHelpers';
 
 // ─── Skeleton placeholders ──────────────────────────────────────
 const SkeletonBanner = () => (
@@ -25,14 +26,16 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [pendingPayments, setPendingPayments] = useState([]);
   const years = getYearOptions(2020);
 
   const fetchDashboard = useCallback(async (year) => {
     setLoading(true);
     try {
-      // ★ SINGLE API call — returns everything needed
       const res = await api.get('/reports/admin-dashboard', { params: { year } });
       setData(res.data);
+      const pendingRes = await api.get('/payments/pending');
+      setPendingPayments(pendingRes.data.pendingPayments || []);
     } catch (e) {
       console.error('Dashboard error:', e);
     } finally {
@@ -43,6 +46,26 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchDashboard(selectedYear);
   }, [selectedYear, fetchDashboard]);
+
+  const handleApprove = async (id) => {
+    if (!window.confirm('আপনি কি এই পেমেন্টটি অনুমোদন করতে চান?')) return;
+    try {
+      await api.post(`/payments/${id}/approve`);
+      fetchDashboard(selectedYear);
+    } catch (error) {
+      alert('অনুমোদন করতে সমস্যা হয়েছে');
+    }
+  };
+
+  const handleReject = async (id) => {
+    if (!window.confirm('আপনি কি এই পেমেন্টটি বাতিল করতে চান?')) return;
+    try {
+      await api.post(`/payments/${id}/reject`);
+      fetchDashboard(selectedYear);
+    } catch (error) {
+      alert('বাতিল করতে সমস্যা হয়েছে');
+    }
+  };
 
   const balanceSheet = data?.balanceSheet;
   const summary = data?.summary || [];
@@ -151,6 +174,65 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Pending Payments Section */}
+      {!loading && pendingPayments.length > 0 && (
+        <Card className="border-l-4 border-l-warning mt-6">
+          <div className="px-5 py-4 border-b border-border bg-warning/5 flex items-center justify-between">
+            <h3 className="font-bold font-bangla text-warning-dark">অপেক্ষমান পেমেন্ট ({pendingPayments.length})</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[600px]">
+              <thead>
+                <tr className="bg-surface-alt/30 border-b border-border">
+                  <th className="px-5 py-3 text-sm font-semibold text-text-secondary font-bangla">সদস্য</th>
+                  <th className="px-5 py-3 text-sm font-semibold text-text-secondary font-bangla">মাস/বছর</th>
+                  <th className="px-5 py-3 text-sm font-semibold text-text-secondary font-bangla">পরিমাণ</th>
+                  <th className="px-5 py-3 text-sm font-semibold text-text-secondary font-bangla">পদ্ধতি</th>
+                  <th className="px-5 py-3 text-sm font-semibold text-text-secondary font-bangla text-right">অ্যাকশন</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {pendingPayments.map(p => (
+                  <tr key={p.id} className="hover:bg-surface-hover transition-colors">
+                    <td className="px-5 py-3">
+                      <p className="font-bold text-sm text-text-primary font-bangla">{p.user?.name}</p>
+                      <p className="text-xs text-text-muted">{p.user?.phone || 'No phone'}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <p className="font-semibold text-sm font-bangla">{getMonthName(p.month)} {p.year}</p>
+                      <p className="text-xs text-text-muted">{formatDateShort(p.createdAt)}</p>
+                    </td>
+                    <td className="px-5 py-3 font-bold text-text-primary">{formatCurrency(p.amount)}</td>
+                    <td className="px-5 py-3">
+                      <span className="text-xs font-semibold px-2 py-1 rounded bg-surface-alt border border-border">
+                        {p.method}
+                      </span>
+                      {p.note && <p className="text-[10px] text-text-muted mt-1 truncate max-w-[120px]" title={p.note}>{p.note}</p>}
+                    </td>
+                    <td className="px-5 py-3 text-right space-x-2">
+                      <button 
+                        onClick={() => handleApprove(p.id)}
+                        className="p-1.5 bg-success/10 text-success hover:bg-success hover:text-white rounded transition-colors"
+                        title="অনুমোদন করুন"
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleReject(p.id)}
+                        className="p-1.5 bg-danger/10 text-danger hover:bg-danger hover:text-white rounded transition-colors"
+                        title="বাতিল করুন"
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Dues Chart */}
@@ -162,14 +244,14 @@ export default function AdminDashboard() {
             </div>
             <CardBody className="p-4 h-[350px] overflow-y-auto">
               {duesChartData.length > 0 ? (
-                <div style={{ height: Math.max(300, duesChartData.length * 40) }}>
+                <div style={{ height: Math.max(300, duesChartData.length * 45) }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={duesChartData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e9ecef" />
                       <XAxis type="number" tick={{ fontSize: 11, fill: '#6c757d' }} axisLine={false} tickLine={false} tickFormatter={(val) => `৳${val / 1000}k`} />
-                      <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fill: '#6c757d', fontFamily: 'Hind Siliguri' }} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11, fill: '#6c757d', fontFamily: 'Hind Siliguri' }} axisLine={false} tickLine={false} interval={0} />
                       <Tooltip cursor={{ fill: '#f1f3f5' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#ef4444', fontWeight: 'bold' }} />
-                      <Bar dataKey="Due" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} />
+                      <Bar dataKey="Due" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} animationDuration={1500} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -190,12 +272,12 @@ export default function AdminDashboard() {
             <CardBody className="p-4 h-[350px] overflow-x-auto">
               <div style={{ width: Math.max(400, chartData.length * 60), height: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e9ecef" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6c757d', fontFamily: 'Hind Siliguri' }} axisLine={false} tickLine={false} angle={-45} textAnchor="end" />
+                    <XAxis dataKey="name" height={70} tick={{ fontSize: 11, fill: '#6c757d', fontFamily: 'Hind Siliguri' }} axisLine={false} tickLine={false} angle={-45} textAnchor="end" interval={0} />
                     <YAxis tick={{ fontSize: 11, fill: '#6c757d' }} axisLine={false} tickLine={false} tickFormatter={(val) => `৳${val / 1000}k`} />
                     <Tooltip cursor={{ fill: '#f1f3f5' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#00A48D', fontWeight: 'bold' }} />
-                    <Bar dataKey="Paid" fill="#00A48D" radius={[4, 4, 0, 0]} barSize={32} />
+                    <Bar dataKey="Paid" fill="#00A48D" radius={[4, 4, 0, 0]} barSize={32} animationDuration={1500} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
