@@ -123,6 +123,7 @@ async function getGlobalFinancialTotals(period, year, month) {
     activeUsersCount,
     userContribMap,
     userManualProfitMap,
+    totalManualProfit,
   };
 }
 
@@ -136,13 +137,16 @@ function calculateUserPnLFast(userId, globalTotals) {
     activeUsersCount,
     userContribMap,
     userManualProfitMap,
+    totalManualProfit = 0,
   } = globalTotals;
 
   const userContribution = userContribMap[userId] || 0;
   const manualProfit = userManualProfitMap[userId] || 0;
 
   const sharePercentage = totalContributions > 0 ? (userContribution / totalContributions) * 100 : 0;
-  const autoProfitLoss = activeUsersCount > 0 ? totalIncome / activeUsersCount : 0;
+  const distributableIncome = totalIncome - totalManualProfit;
+  const autoProfitLoss = activeUsersCount > 0 ? distributableIncome / activeUsersCount : 0;
+
 
   const userExpenseShare = activeUsersCount > 0 ? totalExpenses / activeUsersCount : 0;
   const netProfitLoss = totalIncome - totalExpenses - depreciation;
