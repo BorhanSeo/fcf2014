@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { Plus, Trash2, Calendar, DollarSign, Tag, FileText } from 'lucide-react';
 import api from '../../utils/api';
 
 import { Button } from '../../components/ui/Button';
 
 const Income = () => {
+  const { isAdmin, settings } = useAuth();
   const [incomes, setIncomes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Access check
+  if (!isAdmin && settings?.user_view_incomes !== 'true') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const [formData, setFormData] = useState({
     source: '',
     amount: '',
@@ -77,12 +86,14 @@ const Income = () => {
           <h1 className="text-2xl font-bold text-text-primary font-bangla">আয় / মুনাফা এন্ট্রি</h1>
           <p className="text-text-secondary font-bangla">বিজনেস প্রোফিট বা অন্যান্য আয়ের হিসাব রাখুন</p>
         </div>
-        <Button 
-          icon={Plus} 
-          onClick={() => setIsModalOpen(true)}
-        >
-          নতুন আয় এন্ট্রি
-        </Button>
+        {isAdmin && (
+          <Button 
+            icon={Plus} 
+            onClick={() => setIsModalOpen(true)}
+          >
+            নতুন আয় এন্ট্রি
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -95,13 +106,13 @@ const Income = () => {
                 <th className="p-4 font-semibold">পরিমাণ</th>
                 <th className="p-4 font-semibold">তারিখ</th>
                 <th className="p-4 font-semibold">নোট</th>
-                <th className="p-4 font-semibold text-right">অ্যাকশন</th>
+                {isAdmin && <th className="p-4 font-semibold text-right">অ্যাকশন</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {incomes.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-gray-500 font-bangla">কোনো আয় পাওয়া যায়নি</td>
+                  <td colSpan={isAdmin ? 6 : 5} className="p-8 text-center text-gray-500 font-bangla">কোনো আয় পাওয়া যায়নি</td>
                 </tr>
               ) : (
                 incomes.map((inc) => (
@@ -117,15 +128,17 @@ const Income = () => {
                       {new Date(inc.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </td>
                     <td className="p-4 text-gray-500 text-sm">{inc.note || '-'}</td>
-                    <td className="p-4 text-right">
-                      <button
-                        onClick={() => handleDelete(inc.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="ডিলিট"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
+                    {isAdmin && (
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => handleDelete(inc.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="ডিলিট"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

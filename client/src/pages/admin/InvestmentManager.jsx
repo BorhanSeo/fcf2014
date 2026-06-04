@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/dateHelpers';
@@ -9,10 +11,16 @@ import { Badge } from '../../components/ui/Badge';
 import { Loader2, Plus, TrendingUp, Save, Trash2 } from 'lucide-react';
 
 export default function InvestmentManager() {
+  const { isAdmin, settings } = useAuth();
   const [investments, setInvestments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   
+  // Access check
+  if (!isAdmin && settings?.user_view_investments !== 'true') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // Form State
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -72,9 +80,11 @@ export default function InvestmentManager() {
           <h1 className="text-2xl font-bold text-text-primary font-bangla-display">বিনিয়োগ ব্যবস্থাপনা</h1>
           <p className="text-sm text-text-secondary font-bangla mt-1">ফান্ডের সকল বিনিয়োগ এবং আয়ের হিসাব</p>
         </div>
-        <Button icon={Plus} onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'বাতিল করুন' : 'নতুন বিনিয়োগ'}
-        </Button>
+        {isAdmin && (
+          <Button icon={Plus} onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'বাতিল করুন' : 'নতুন বিনিয়োগ'}
+          </Button>
+        )}
       </div>
 
       {showForm && (
@@ -125,13 +135,15 @@ export default function InvestmentManager() {
                   <Badge variant={inv.status === 'ACTIVE' ? 'active' : 'closed'}>{inv.status}</Badge>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-text-muted">{formatDateShort(inv.date)}</span>
-                    <button 
-                      onClick={() => handleDeleteInvestment(inv.id)}
-                      className="p-1 text-danger hover:bg-danger/10 rounded transition-colors"
-                      title="মুছে ফেলুন"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={() => handleDeleteInvestment(inv.id)}
+                        className="p-1 text-danger hover:bg-danger/10 rounded transition-colors"
+                        title="মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <h3 className="text-lg font-bold text-text-primary font-bangla mb-1">{inv.title}</h3>

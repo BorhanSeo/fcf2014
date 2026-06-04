@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminSettings() {
-  const { user } = useAuth();
+  const { user, settings, setSettings } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -54,6 +54,18 @@ export default function AdminSettings() {
       showMessage(e.response?.data?.message || 'রোল পরিবর্তন ব্যর্থ হয়েছে', 'error');
     } finally {
       setUpdatingUserRole(null);
+    }
+  };
+
+  const handleSettingToggle = async (key, currentValue) => {
+    const newValue = currentValue === 'true' ? 'false' : 'true';
+    setSettings(prev => ({ ...prev, [key]: newValue }));
+    try {
+      await api.put('/settings', { [key]: newValue });
+      showMessage('সেটিংস সফলভাবে আপডেট হয়েছে');
+    } catch (e) {
+      setSettings(prev => ({ ...prev, [key]: currentValue }));
+      showMessage('সেটিংস আপডেট ব্যর্থ হয়েছে', 'error');
     }
   };
 
@@ -119,6 +131,7 @@ export default function AdminSettings() {
     { id: 'profile', label: 'প্রোফাইল', icon: User },
     { id: 'security', label: 'সিকিউরিটি', icon: Lock },
     { id: 'roles', label: 'ইউজার রোল', icon: Users },
+    { id: 'permissions', label: 'ভিউ সেটিংস', icon: Eye },
     { id: 'system', label: 'সিস্টেম তথ্য', icon: Shield },
   ];
 
@@ -373,6 +386,47 @@ export default function AdminSettings() {
                 </table>
               </div>
             )}
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Permissions Tab */}
+      {activeTab === 'permissions' && (
+        <Card>
+          <div className="px-5 py-4 border-b border-border bg-surface-alt/30">
+            <h3 className="font-semibold font-bangla text-lg">সদস্য ভিউ সেটিংস</h3>
+            <p className="text-xs text-text-muted font-bangla mt-1">সাধারণ সদস্যরা ফান্ডের কোন কোন বিভাগ দেখতে পারবেন তা নিয়ন্ত্রণ করুন</p>
+          </div>
+          <CardBody className="p-6 space-y-6">
+            {[
+              { key: 'user_view_investments', label: 'বিনিয়োগ', desc: 'সাধারণ সদস্যরা ফান্ডের বিনিয়োগ তালিকা এবং আয়ের হিসাব দেখতে পারবেন' },
+              { key: 'user_view_incomes', label: 'আয় / মুনাফা', desc: 'সাধারণ সদস্যরা বিজনেসের অর্জিত আয় এবং মুনাফার তালিকা দেখতে পারবেন' },
+              { key: 'user_view_expenses', label: 'খরচ', desc: 'সাধারণ সদস্যরা ফান্ডের সকল খরচের রেকর্ড দেখতে পারবেন' },
+              { key: 'user_view_assets', label: 'স্থায়ী সম্পদ', desc: 'সাধারণ সদস্যরা ফান্ডের সকল স্থায়ী সম্পদ (Fixed Assets) এর তালিকা দেখতে পারবেন' },
+              { key: 'user_view_reports', label: 'রিপোর্ট', desc: 'সাধারণ সদস্যরা ব্যালেন্স শীট, আয়-ব্যয় এবং ক্যাশ ফ্লো রিপোর্ট দেখতে পারবেন' },
+            ].map((item) => {
+              const isChecked = settings[item.key] === 'true';
+              return (
+                <div key={item.key} className="flex justify-between items-center p-4 rounded-2xl bg-surface-alt/40 border border-border/50 hover:bg-surface-alt transition-colors">
+                  <div className="flex-1 pr-4">
+                    <h4 className="font-bold text-text-primary font-bangla text-[15px]">{item.label}</h4>
+                    <p className="text-xs text-text-secondary font-bangla mt-0.5">{item.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => handleSettingToggle(item.key, settings[item.key] || 'false')}
+                    className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none cursor-pointer ${
+                      isChecked ? 'bg-primary' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
+                        isChecked ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
           </CardBody>
         </Card>
       )}

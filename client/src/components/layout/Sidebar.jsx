@@ -8,7 +8,7 @@ import {
 import { useState } from 'react';
 
 export default function Sidebar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, settings } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -35,6 +35,22 @@ export default function Sidebar() {
     { to: '/dues', icon: Receipt, label: 'বকেয়া পেমেন্ট' },
     { to: '/profile', icon: Users, label: 'প্রোফাইল' },
   ];
+
+  if (settings?.user_view_investments === 'true') {
+    userLinks.push({ to: '/investments', icon: TrendingUp, label: 'বিনিয়োগ' });
+  }
+  if (settings?.user_view_incomes === 'true') {
+    userLinks.push({ to: '/incomes', icon: Wallet, label: 'আয় / মুনাফা' });
+  }
+  if (settings?.user_view_expenses === 'true') {
+    userLinks.push({ to: '/expenses', icon: Receipt, label: 'খরচ' });
+  }
+  if (settings?.user_view_assets === 'true') {
+    userLinks.push({ to: '/assets', icon: Landmark, label: 'সম্পদ' });
+  }
+  if (settings?.user_view_reports === 'true') {
+    userLinks.push({ to: '/reports', icon: FileText, label: 'রিপোর্ট' });
+  }
 
   const links = isAdmin ? adminLinks : userLinks;
 

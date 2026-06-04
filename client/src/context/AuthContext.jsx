@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState({});
 
   useEffect(() => {
     const token = localStorage.getItem('sanchoy_token');
@@ -18,6 +19,13 @@ export function AuthProvider({ children }) {
         .then((res) => {
           setUser(res.data.user);
           localStorage.setItem('sanchoy_user', JSON.stringify(res.data.user));
+          // Fetch settings after verification
+          return api.get('/settings');
+        })
+        .then((res) => {
+          if (res && res.data) {
+            setSettings(res.data.settings);
+          }
         })
         .catch(() => {
           logout();
@@ -34,6 +42,15 @@ export function AuthProvider({ children }) {
     localStorage.setItem('sanchoy_token', token);
     localStorage.setItem('sanchoy_user', JSON.stringify(userData));
     setUser(userData);
+
+    // Fetch settings on login
+    try {
+      const settingsRes = await api.get('/settings');
+      setSettings(settingsRes.data.settings);
+    } catch (e) {
+      console.error('Error fetching settings on login:', e);
+    }
+
     return userData;
   };
 
@@ -41,6 +58,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('sanchoy_token');
     localStorage.removeItem('sanchoy_user');
     setUser(null);
+    setSettings({});
   };
 
   const updateUser = (updatedData) => {
@@ -52,7 +70,7 @@ export function AuthProvider({ children }) {
   const isAdmin = user?.role === 'SUPER_ADMIN';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin, settings, setSettings }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/dateHelpers';
@@ -8,10 +10,16 @@ import { Input } from '../../components/ui/Input';
 import { Loader2, Plus, Building, Save, Trash2 } from 'lucide-react';
 
 export default function AssetManager() {
+  const { isAdmin, settings } = useAuth();
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  
+
+  // Access check
+  if (!isAdmin && settings?.user_view_assets !== 'true') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // Form State
   const [name, setName] = useState('');
   const [purchaseValue, setPurchaseValue] = useState('');
@@ -81,9 +89,11 @@ export default function AssetManager() {
           <h1 className="text-2xl font-bold text-text-primary font-bangla-display">স্থায়ী সম্পদ (Fixed Assets)</h1>
           <p className="text-sm text-text-secondary font-bangla mt-1">ফান্ডের যাবতীয় স্থায়ী সম্পদের হিসাব</p>
         </div>
-        <Button icon={Plus} variant="primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'বাতিল করুন' : 'নতুন সম্পদ যোগ করুন'}
-        </Button>
+        {isAdmin && (
+          <Button icon={Plus} variant="primary" onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'বাতিল করুন' : 'নতুন সম্পদ যোগ করুন'}
+          </Button>
+        )}
       </div>
 
       {showForm && (
@@ -120,13 +130,13 @@ export default function AssetManager() {
                 <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla">অবচয় হার</th>
                 <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-right">ক্রয়মূল্য</th>
                 <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-center">স্ট্যাটাস</th>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-right">অ্যাকশন</th>
+                {isAdmin && <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-right">অ্যাকশন</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
+                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center">
                     <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
                   </td>
                 </tr>
@@ -149,18 +159,20 @@ export default function AssetManager() {
                         <span className="px-2 py-1 bg-success/20 text-success text-xs rounded-full font-semibold">Active</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      {!asset.isDisposed && (
-                        <Button size="sm" variant="outline" onClick={() => handleDispose(asset.id, asset.name)}>
-                          বিক্রি/বাদ দিন
-                        </Button>
-                      )}
-                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 text-right">
+                        {!asset.isDisposed && (
+                          <Button size="sm" variant="outline" onClick={() => handleDispose(asset.id, asset.name)}>
+                            বিক্রি/বাদ দিন
+                          </Button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-text-muted font-bangla">
+                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center text-text-muted font-bangla">
                     কোনো সম্পদের রেকর্ড পাওয়া যায়নি।
                   </td>
                 </tr>

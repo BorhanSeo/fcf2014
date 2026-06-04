@@ -11,6 +11,7 @@ const expenseRoutes = require('./src/routes/expenses');
 const assetRoutes = require('./src/routes/assets');
 const reportRoutes = require('./src/routes/reports');
 const incomeRoutes = require('./src/routes/incomes');
+const settingRoutes = require('./src/routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -45,6 +46,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/incomes', incomeRoutes);
+app.use('/api/settings', settingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

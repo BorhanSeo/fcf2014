@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 import api from '../../../utils/api';
 import { getYearOptions, getMonthName } from '../../../utils/dateHelpers';
 import { Button } from '../../../components/ui/Button';
@@ -12,6 +14,12 @@ import FixedAssets from './FixedAssets';
 import UserPnL from './UserPnL';
 
 export default function ReportsContainer() {
+  const { isAdmin, settings } = useAuth();
+  
+  // Access check
+  if (!isAdmin && settings?.user_view_reports !== 'true') {
+    return <Navigate to="/dashboard" replace />;
+  }
   const [activeReport, setActiveReport] = useState('balance-sheet');
   const [period, setPeriod] = useState('yearly');
   const [year, setYear] = useState(new Date().getFullYear());
@@ -26,7 +34,7 @@ export default function ReportsContainer() {
     { id: 'income-expenditure', title: 'Income & Expenditure' },
     { id: 'receipt-payment', title: 'Receipt & Payment' },
     { id: 'fixed-assets', title: 'Fixed Assets Schedule' },
-    { id: 'user-pnl', title: 'Per User P&L' }
+    ...(isAdmin ? [{ id: 'user-pnl', title: 'Per User P&L' }] : [])
   ];
 
   const fetchReport = async () => {

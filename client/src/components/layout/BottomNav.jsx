@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { LayoutDashboard, CreditCard, Receipt, Users, TrendingUp, FileText } from 'lucide-react';
 
 export default function BottomNav() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, settings } = useAuth();
 
   const adminLinks = [
     { to: '/admin', icon: LayoutDashboard, label: 'হোম' },
@@ -17,6 +17,20 @@ export default function BottomNav() {
     { to: '/payments', icon: CreditCard, label: 'পেমেন্ট' },
     { to: '/dues', icon: Receipt, label: 'বকেয়া' },
   ];
+
+  let addedCount = 0;
+  if (settings?.user_view_investments === 'true' && addedCount < 2) {
+    userLinks.push({ to: '/investments', icon: TrendingUp, label: 'বিনিয়োগ' });
+    addedCount++;
+  }
+  if (settings?.user_view_reports === 'true' && addedCount < 2) {
+    userLinks.push({ to: '/reports', icon: FileText, label: 'রিপোর্ট' });
+    addedCount++;
+  }
+  if (settings?.user_view_expenses === 'true' && addedCount < 2) {
+    userLinks.push({ to: '/expenses', icon: Receipt, label: 'খরচ' });
+    addedCount++;
+  }
 
   const links = isAdmin ? adminLinks : userLinks;
 

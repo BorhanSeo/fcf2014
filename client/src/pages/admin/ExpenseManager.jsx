@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort, getYearOptions, BANGLA_MONTHS } from '../../utils/dateHelpers';
@@ -8,10 +10,16 @@ import { Input } from '../../components/ui/Input';
 import { Loader2, Plus, Receipt, Save, Trash2, Calendar, CalendarDays, TrendingDown } from 'lucide-react';
 
 export default function ExpenseManager() {
+  const { isAdmin, settings } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   
+  // Access check
+  if (!isAdmin && settings?.user_view_expenses !== 'true') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // Filter State
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -115,9 +123,11 @@ export default function ExpenseManager() {
               <option key={y} value={y}>{y} সাল</option>
             ))}
           </select>
-          <Button icon={Plus} variant="danger" onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'বাতিল করুন' : 'নতুন খরচ'}
-          </Button>
+          {isAdmin && (
+            <Button icon={Plus} variant="danger" onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'বাতিল করুন' : 'নতুন খরচ'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -223,13 +233,15 @@ export default function ExpenseManager() {
                     <td className="px-6 py-4 text-sm font-bold text-danger text-right">
                       <div className="flex items-center justify-end gap-3">
                         <span>{formatCurrency(expense.amount)}</span>
-                        <button 
-                          onClick={() => handleDeleteExpense(expense.id)}
-                          className="p-1.5 text-danger hover:bg-danger/10 rounded transition-colors"
-                          title="মুছে ফেলুন"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            className="p-1.5 text-danger hover:bg-danger/10 rounded transition-colors"
+                            title="মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

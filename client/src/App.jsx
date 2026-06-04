@@ -51,6 +51,11 @@ function App() {
               <Route path="/payments" element={<PaymentHistory />} />
               <Route path="/dues" element={<DuePayments />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/investments" element={<InvestmentManager />} />
+              <Route path="/expenses" element={<ExpenseManager />} />
+              <Route path="/incomes" element={<Income />} />
+              <Route path="/assets" element={<AssetManager />} />
+              <Route path="/reports" element={<ReportsContainer />} />
               
               {/* Admin Routes */}
               <Route element={<ProtectedRoute adminOnly={true} />}>
