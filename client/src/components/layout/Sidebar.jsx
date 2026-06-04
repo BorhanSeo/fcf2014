@@ -36,6 +36,9 @@ export default function Sidebar() {
     { to: '/profile', icon: Users, label: 'প্রোফাইল' },
   ];
 
+  if (settings?.user_view_users === 'true') {
+    userLinks.push({ to: '/users', icon: Users, label: 'সদস্য তালিকা' });
+  }
   if (settings?.user_view_investments === 'true') {
     userLinks.push({ to: '/investments', icon: TrendingUp, label: 'বিনিয়োগ' });
   }

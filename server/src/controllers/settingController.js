@@ -8,7 +8,9 @@ const DEFAULT_SETTINGS = {
   user_view_incomes: 'false',
   user_view_assets: 'false',
   user_view_reports: 'false',
+  user_view_users: 'false',
 };
+
 
 // GET /api/settings - Fetch all settings
 const getSettings = async (req, res) => {

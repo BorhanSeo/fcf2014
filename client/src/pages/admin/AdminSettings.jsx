@@ -399,6 +399,7 @@ export default function AdminSettings() {
           </div>
           <CardBody className="p-6 space-y-6">
             {[
+              { key: 'user_view_users', label: 'সদস্য তালিকা', desc: 'সাধারণ সদস্যরা ফান্ডের সকল সদস্যের তালিকা এবং প্রোফাইল দেখতে পারবেন' },
               { key: 'user_view_investments', label: 'বিনিয়োগ', desc: 'সাধারণ সদস্যরা ফান্ডের বিনিয়োগ তালিকা এবং আয়ের হিসাব দেখতে পারবেন' },
               { key: 'user_view_incomes', label: 'আয় / মুনাফা', desc: 'সাধারণ সদস্যরা বিজনেসের অর্জিত আয় এবং মুনাফার তালিকা দেখতে পারবেন' },
               { key: 'user_view_expenses', label: 'খরচ', desc: 'সাধারণ সদস্যরা ফান্ডের সকল খরচের রেকর্ড দেখতে পারবেন' },

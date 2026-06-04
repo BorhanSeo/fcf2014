@@ -51,6 +51,7 @@ function App() {
               <Route path="/payments" element={<PaymentHistory />} />
               <Route path="/dues" element={<DuePayments />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/users" element={<UserManagement />} />
               <Route path="/investments" element={<InvestmentManager />} />
               <Route path="/expenses" element={<ExpenseManager />} />
               <Route path="/incomes" element={<Income />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/dateHelpers';
@@ -12,9 +12,14 @@ import { Loader2, Plus, Edit2, Shield, User, UserX, UserCheck, X, Trash2 } from 
 import { useAuth } from '../../context/AuthContext';
 
 export default function UserManagement() {
-  const { user: currentUser, updateUser } = useAuth();
+  const { user: currentUser, updateUser, isAdmin, settings } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Access check
+  if (!isAdmin && settings?.user_view_users !== 'true') {
+    return <Navigate to="/dashboard" replace />;
+  }
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -134,7 +139,7 @@ export default function UserManagement() {
           <h1 className="text-2xl font-bold text-text-primary font-bangla-display">সদস্য ব্যবস্থাপনা</h1>
           <p className="text-sm text-text-secondary font-bangla mt-1">সব সদস্যের তালিকা ও তথ্য</p>
         </div>
-        <Button icon={Plus} onClick={() => openModal()}>নতুন সদস্য যোগ করুন</Button>
+        {isAdmin && <Button icon={Plus} onClick={() => openModal()}>নতুন সদস্য যোগ করুন</Button>}
       </div>
 
       <Card>
@@ -148,13 +153,13 @@ export default function UserManagement() {
                 <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-right">মোট বকেয়া</th>
                 <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-right">সর্বমোট পাওনা</th>
                 <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-center">স্ট্যাটাস</th>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-right">অ্যাকশন</th>
+                {isAdmin && <th className="px-6 py-4 text-sm font-semibold text-text-secondary font-bangla text-right">অ্যাকশন</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
+                  <td colSpan={isAdmin ? 7 : 6} className="px-6 py-12 text-center">
                     <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
                   </td>
                 </tr>
@@ -170,12 +175,16 @@ export default function UserManagement() {
                         </div>
                         <div>
                           <p className="font-semibold text-sm font-bangla flex items-center gap-1">
-                            <Link to={`/admin/users/${user.id}`} className="hover:text-primary hover:underline transition-colors">
-                              {user.name}
-                            </Link>
+                            {isAdmin ? (
+                              <Link to={`/admin/users/${user.id}`} className="hover:text-primary hover:underline transition-colors">
+                                {user.name}
+                              </Link>
+                            ) : (
+                              <span>{user.name}</span>
+                            )}
                             {user.role === 'SUPER_ADMIN' && <Shield className="w-3 h-3 text-primary" />}
                           </p>
-                          <p className="text-xs text-text-muted mt-0.5">যোগদান: {formatDateShort(user.joinDate)}</p>
+                          <p className="text-xs text-text-muted mt-0.5">যোগدان: {formatDateShort(user.joinDate)}</p>
                         </div>
                       </div>
                     </td>
@@ -201,37 +210,39 @@ export default function UserManagement() {
                         {user.isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          title="এডিট"
-                          onClick={() => openModal(user)}
-                          className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          title={user.isActive ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}
-                          onClick={() => handleToggleActive(user)}
-                          className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                            user.isActive 
-                              ? 'text-secondary hover:bg-secondary/10' 
-                              : 'text-warning hover:bg-warning/10'
-                          }`}
-                        >
-                          {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                        </button>
-                        {currentUser?.id !== user.id && (
+                    {isAdmin && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
                           <button 
-                            title="মুছে ফেলুন"
-                            onClick={() => handleDeleteUser(user)}
-                            className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer"
+                            title="এডিট"
+                            onClick={() => openModal(user)}
+                            className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4" />
                           </button>
-                        )}
-                      </div>
-                    </td>
+                          <button 
+                            title={user.isActive ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}
+                            onClick={() => handleToggleActive(user)}
+                            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                              user.isActive 
+                                ? 'text-secondary hover:bg-secondary/10' 
+                                : 'text-warning hover:bg-warning/10'
+                            }`}
+                          >
+                            {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          </button>
+                          {currentUser?.id !== user.id && (
+                            <button 
+                              title="মুছে ফেলুন"
+                              onClick={() => handleDeleteUser(user)}
+                              className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
