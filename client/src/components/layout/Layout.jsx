@@ -25,10 +25,12 @@ export function AppLayout() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 relative z-0">
-          <div className="max-w-7xl mx-auto h-full">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-0">
+          <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>
+          {/* Spacer to prevent bottom nav from overlapping page content on mobile */}
+          <div className="h-24 md:hidden" />
         </main>
         <BottomNav />
       </div>
