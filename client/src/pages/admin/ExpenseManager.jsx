@@ -20,11 +20,9 @@ export default function ExpenseManager() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Filter State
   const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
-  const years = getYearOptions(2020);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
   // Form State
   const [title, setTitle] = useState('');
@@ -59,6 +57,7 @@ export default function ExpenseManager() {
       });
       setShowForm(false);
       setTitle(''); setAmount(''); setNote('');
+      setCurrentPage(1);
       fetchExpenses();
     } catch (error) {
       console.error('Error creating expense:', error);
@@ -71,6 +70,7 @@ export default function ExpenseManager() {
     if (!window.confirm('আপনি কি নিশ্চিত যে এই খরচটি মুছে ফেলতে চান?')) return;
     try {
       await api.delete(`/expenses/${id}`);
+      setCurrentPage(1);
       fetchExpenses();
     } catch (error) {
       console.error('Error deleting expense:', error);
@@ -78,24 +78,27 @@ export default function ExpenseManager() {
     }
   };
 
-  // Calculate summaries
-  // Calculate summaries based on selection
+  // Calculate summaries based on current period
   const allTimeExpense = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   
-  const yearlyExpense = expenses.filter(exp => {
+  const currentYearExpense = expenses.filter(exp => {
     const d = new Date(exp.date);
-    return d.getFullYear() === selectedYear;
+    return d.getFullYear() === now.getFullYear();
   }).reduce((sum, exp) => sum + exp.amount, 0);
 
-  const monthlyExpense = expenses.filter(exp => {
+  const currentMonthExpense = expenses.filter(exp => {
     const d = new Date(exp.date);
-    return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   }).reduce((sum, exp) => sum + exp.amount, 0);
 
-  const filteredExpenses = expenses.filter(exp => {
-    const d = new Date(exp.date);
-    return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
-  });
+  // Sorting: latest first
+  const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentExpenses = sortedExpenses.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedExpenses.length / itemsPerPage);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
@@ -105,24 +108,6 @@ export default function ExpenseManager() {
           <p className="text-sm text-text-secondary font-bangla mt-1">ফান্ডের যাবতীয় খরচের হিসাব</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="border border-border rounded-xl px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 text-text-primary font-bangla cursor-pointer"
-          >
-            {BANGLA_MONTHS.map((m, i) => (
-              <option key={i} value={i + 1}>{m}</option>
-            ))}
-          </select>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="border border-border rounded-xl px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 text-text-primary font-bangla cursor-pointer"
-          >
-            {years.map(y => (
-              <option key={y} value={y}>{y} সাল</option>
-            ))}
-          </select>
           {isAdmin && (
             <Button icon={Plus} variant="danger" onClick={() => setShowForm(!showForm)}>
               {showForm ? 'বাতিল করুন' : 'নতুন খরচ'}
@@ -139,8 +124,8 @@ export default function ExpenseManager() {
               <Calendar className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">নির্বাচিত মাসের খরচ</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(monthlyExpense)}</h3>
+              <p className="text-sm font-medium text-text-muted font-bangla">চলতি মাসের খরচ</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(currentMonthExpense)}</h3>
             </div>
           </CardBody>
         </Card>
@@ -150,8 +135,8 @@ export default function ExpenseManager() {
               <CalendarDays className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-text-muted font-bangla">নির্বাচিত বছরের খরচ</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(yearlyExpense)}</h3>
+              <p className="text-sm font-medium text-text-muted font-bangla">চলতি বছরের খরচ</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(currentYearExpense)}</h3>
             </div>
           </CardBody>
         </Card>
@@ -221,8 +206,8 @@ export default function ExpenseManager() {
                     <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
                   </td>
                 </tr>
-              ) : filteredExpenses.length > 0 ? (
-                filteredExpenses.map((expense) => (
+              ) : currentExpenses.length > 0 ? (
+                currentExpenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-surface-hover transition-colors">
                     <td className="px-6 py-4 text-sm text-text-primary">{formatDateShort(expense.date)}</td>
                     <td className="px-6 py-4">
@@ -256,6 +241,65 @@ export default function ExpenseManager() {
             </tbody>
           </table>
         </div>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-border px-6 py-4 bg-surface-alt/20 gap-4">
+            <p className="text-sm text-text-secondary font-bangla">
+              মোট <span className="font-semibold text-text-primary">{expenses.length}</span> টি খরচের মধ্যে{' '}
+              <span className="font-semibold text-text-primary">{indexOfFirstItem + 1}</span> -{' '}
+              <span className="font-semibold text-text-primary">
+                {Math.min(indexOfLastItem, expenses.length)}
+              </span>{' '}
+              দেখানো হচ্ছে
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="font-bangla"
+              >
+                পূর্ববর্তী
+              </Button>
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-sm font-semibold flex items-center justify-center transition-all ${
+                          currentPage === page
+                            ? 'bg-danger text-white shadow-sm'
+                            : 'text-text-secondary hover:bg-surface-hover border border-border bg-white'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  }
+                  if (page === 2 && currentPage > 3) {
+                    return <span key="left-dots" className="text-text-muted px-1">...</span>;
+                  }
+                  if (page === totalPages - 1 && currentPage < totalPages - 2) {
+                    return <span key="right-dots" className="text-text-muted px-1">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className="font-bangla"
+              >
+                পরবর্তী
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );
