@@ -61,7 +61,10 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary font-bangla-display">আমার ড্যাশবোর্ড</h1>
-          <p className="text-sm text-text-secondary font-bangla mt-1">আপনার আর্থিক সারসংক্ষেপ</p>
+          <p className="text-sm text-text-secondary font-bangla mt-1 md:hidden">
+            স্বাগতম, <span className="font-semibold text-text-primary">{user?.name}</span> 👋
+          </p>
+          <p className="text-sm text-text-secondary font-bangla mt-1 hidden md:block">আপনার আর্থিক সারসংক্ষেপ</p>
         </div>
       </div>
 
