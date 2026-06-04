@@ -1,6 +1,6 @@
 {
   "appId": "com.fcf2014.app",
-  "appName": "FCF 2014",
+  "appName": "FCF2014",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
