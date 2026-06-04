@@ -68,7 +68,7 @@ export default function PaymentHistory() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl transition-colors font-bangla text-sm shadow-sm"
+            className="hidden sm:flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl transition-colors font-bangla text-sm shadow-sm"
           >
             <Plus className="w-4 h-4" />
             পেমেন্ট যোগ করুন
@@ -152,6 +152,15 @@ export default function PaymentHistory() {
           </table>
         </div>
       </Card>
+
+      {/* Mobile Floating Action Button (FAB) */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="sm:hidden fixed bottom-20 right-6 z-40 bg-primary text-white w-14 h-14 rounded-full shadow-lg shadow-primary/40 flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+        title="পেমেন্ট যোগ করুন"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
 
       {/* Add Payment Modal */}
       {showModal && (
