@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardBody } from '../../components/ui/Card';
 import api from '../../utils/api';
 import {
   Settings as SettingsIcon, User, Lock, Bell, Shield, Save,
-  Eye, EyeOff, CheckCircle, AlertCircle
+  Eye, EyeOff, CheckCircle, AlertCircle, Users, Loader2
 } from 'lucide-react';
 
 export default function AdminSettings() {
@@ -12,6 +12,50 @@ export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+
+  // User roles state
+  const [usersList, setUsersList] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [updatingUserRole, setUpdatingUserRole] = useState(null);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await api.get('/users');
+      setUsersList(res.data.users);
+    } catch (e) {
+      showMessage('ইউজার তালিকা লোড করতে ব্যর্থ হয়েছে', 'error');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'roles' && usersList.length === 0) {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  const handleRoleChange = async (userId, userName, newRole) => {
+    if (userId === user.id) {
+      showMessage('আপনি নিজের রোল পরিবর্তন করতে পারবেন না', 'error');
+      return;
+    }
+    if (!window.confirm(`আপনি কি নিশ্চিত যে "${userName}" এর রোল পরিবর্তন করে "${newRole === 'SUPER_ADMIN' ? 'অ্যাডমিন' : 'সদস্য'}" করতে চান?`)) {
+      return;
+    }
+    setUpdatingUserRole(userId);
+    try {
+      await api.put(`/users/${userId}`, { role: newRole });
+      showMessage(`"${userName}" এর রোল সফলভাবে পরিবর্তন হয়েছে`);
+      setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (e) {
+      showMessage(e.response?.data?.message || 'রোল পরিবর্তন ব্যর্থ হয়েছে', 'error');
+    } finally {
+      setUpdatingUserRole(null);
+    }
+  };
 
   // Profile form
   const [profile, setProfile] = useState({
@@ -74,6 +118,7 @@ export default function AdminSettings() {
   const tabs = [
     { id: 'profile', label: 'প্রোফাইল', icon: User },
     { id: 'security', label: 'সিকিউরিটি', icon: Lock },
+    { id: 'roles', label: 'ইউজার রোল', icon: Users },
     { id: 'system', label: 'সিস্টেম তথ্য', icon: Shield },
   ];
 
@@ -227,6 +272,107 @@ export default function AdminSettings() {
                 <span className="font-bangla">{saving ? 'পরিবর্তন হচ্ছে...' : 'পাসওয়ার্ড পরিবর্তন করুন'}</span>
               </button>
             </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Roles Tab */}
+      {activeTab === 'roles' && (
+        <Card>
+          <div className="px-5 py-4 border-b border-border bg-surface-alt/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold font-bangla text-lg">ব্যবহারকারী রোল ব্যবস্থাপনা</h3>
+              <p className="text-xs text-text-muted font-bangla mt-1">সদস্যদের রোল পরিবর্তন করে অ্যাডমিন বা সাধারণ সদস্য হিসেবে সেট করুন</p>
+            </div>
+            <div className="w-full sm:w-64">
+              <input
+                type="text"
+                placeholder="সদস্য খুঁজুন..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-full border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla"
+              />
+            </div>
+          </div>
+          <CardBody className="p-0">
+            {loadingUsers ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+                <p className="text-sm text-text-muted font-bangla mt-2">ব্যবহারকারী তালিকা লোড হচ্ছে...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-surface-alt/20 border-b border-border">
+                      <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla">নাম ও যোগাযোগ</th>
+                      <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla">বর্তমান রোল</th>
+                      <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla text-right">রোল পরিবর্তন</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {usersList.filter(u => 
+                      u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                      (u.phone && u.phone.includes(userSearch))
+                    ).length === 0 ? (
+                      <tr>
+                        <td colSpan="3" className="px-6 py-8 text-center text-text-muted font-bangla text-sm">
+                          কোনো ব্যবহারকারী পাওয়া যায়নি
+                        </td>
+                      </tr>
+                    ) : (
+                      usersList
+                        .filter(u => 
+                          u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                          u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                          (u.phone && u.phone.includes(userSearch))
+                        )
+                        .map((u) => (
+                          <tr key={u.id} className="hover:bg-surface-hover/30 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white font-bangla text-sm
+                                  ${u.role === 'SUPER_ADMIN' ? 'bg-primary' : 'bg-secondary'}
+                                `}>
+                                  {u.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-sm font-bangla text-text-primary">{u.name}</p>
+                                  <p className="text-xs text-text-muted mt-0.5">{u.email} {u.phone && `• ${u.phone}`}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold font-bangla
+                                ${u.role === 'SUPER_ADMIN' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}
+                              `}>
+                                {u.role === 'SUPER_ADMIN' ? 'অ্যাডমিন' : 'সদস্য'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="inline-flex items-center gap-2 justify-end w-full">
+                                {updatingUserRole === u.id && (
+                                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                )}
+                                <select
+                                  value={u.role}
+                                  disabled={updatingUserRole === u.id || u.id === user.id}
+                                  onChange={(e) => handleRoleChange(u.id, u.name, e.target.value)}
+                                  className="border border-border rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla bg-white cursor-pointer disabled:opacity-50"
+                                >
+                                  <option value="USER">সদস্য (USER)</option>
+                                  <option value="SUPER_ADMIN">অ্যাডমিন (SUPER_ADMIN)</option>
+                                </select>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardBody>
         </Card>
       )}

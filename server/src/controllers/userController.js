@@ -158,7 +158,7 @@ const getUserById = async (req, res) => {
 // PUT /api/users/:id — Update user (Admin)
 const updateUser = async (req, res) => {
   try {
-    const { name, email, phone, monthlyAmount, joinDate, password } = req.body;
+    const { name, email, phone, monthlyAmount, joinDate, password, role } = req.body;
 
     const updateData = {};
     if (name) updateData.name = name;
@@ -167,6 +167,13 @@ const updateUser = async (req, res) => {
     if (monthlyAmount !== undefined) updateData.monthlyAmount = monthlyAmount;
     if (joinDate) updateData.joinDate = new Date(joinDate);
     if (password) updateData.password = await bcrypt.hash(password, 12);
+    if (role !== undefined) {
+      if (['SUPER_ADMIN', 'USER'].includes(role)) {
+        updateData.role = role;
+      } else {
+        return res.status(400).json({ message: 'অবৈধ রোল' });
+      }
+    }
 
     const user = await prisma.user.update({
       where: { id: req.params.id },
