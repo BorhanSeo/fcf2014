@@ -225,9 +225,26 @@ const toggleUser = async (req, res) => {
 // GET /api/users/my-summary — User dashboard summary
 const getMySummary = async (req, res) => {
   try {
-    const pnl = await calculateUserPnL(req.user.id, 'all-time');
+    const globalTotals = await getGlobalFinancialTotals('all-time');
+    const pnl = {
+      ...calculateUserPnLFast(req.user.id, globalTotals),
+      period: { type: 'all-time' }
+    };
     
-    res.json({ pnl });
+    const membersFund = globalTotals.totalContributions;
+    const cumulativeIncome = globalTotals.totalIncome;
+    const cumulativeExpenses = globalTotals.totalExpenses + (globalTotals.depreciation || 0);
+    const totalFCFFund = membersFund + cumulativeIncome - cumulativeExpenses;
+
+    res.json({ 
+      pnl,
+      fcfTotals: {
+        totalFCFFund,
+        membersFund,
+        cumulativeIncome,
+        cumulativeExpenses
+      }
+    });
   } catch (error) {
     console.error('GetMySummary error:', error);
     res.status(500).json({ message: 'সার্ভার এরর' });

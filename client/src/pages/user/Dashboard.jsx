@@ -5,7 +5,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/dateHelpers';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { Wallet, AlertCircle, TrendingUp, TrendingDown, Loader2, PiggyBank } from 'lucide-react';
+import { Wallet, AlertCircle, TrendingUp, TrendingDown, Loader2, PiggyBank, Landmark } from 'lucide-react';
 
 
 
@@ -16,7 +16,8 @@ export default function Dashboard() {
     summary: { totalPaid: 0, totalDue: 0, count: 0 },
     dues: [],
     totalDueAmount: 0,
-    pnl: null
+    pnl: null,
+    fcfTotals: null
   });
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +27,7 @@ export default function Dashboard() {
         const [paymentsRes, duesRes, pnlRes] = await Promise.all([
           api.get('/payments/my'),
           api.get('/payments/my/dues'),
-          api.get(`/users/my-summary`).catch(() => ({ data: { pnl: { sharePercentage: 0, userProfitLoss: 0 } } })) // We'll add this endpoint
+          api.get(`/users/my-summary`).catch(() => ({ data: { pnl: { sharePercentage: 0, userProfitLoss: 0 }, fcfTotals: null } }))
         ]);
 
         setData({
@@ -34,7 +35,8 @@ export default function Dashboard() {
           summary: paymentsRes.data.summary,
           dues: duesRes.data.dues,
           totalDueAmount: duesRes.data.totalDue,
-          pnl: pnlRes.data.pnl
+          pnl: pnlRes.data.pnl,
+          fcfTotals: pnlRes.data.fcfTotals
         });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -62,6 +64,37 @@ export default function Dashboard() {
           <p className="text-sm text-text-secondary font-bangla mt-1">আপনার আর্থিক সারসংক্ষেপ</p>
         </div>
       </div>
+
+      {/* Total FCF Fund Banner */}
+      {data.fcfTotals && (
+        <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 text-white shadow-lg shadow-primary/20 flex flex-col xl:flex-row items-center justify-between">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
+              <Landmark className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <p className="text-primary-100 font-medium font-bangla text-sm">সর্বমোট ফান্ড (Total FCF Fund)</p>
+              <h2 className="text-3xl md:text-4xl font-bold mt-1 tracking-tight">{formatCurrency(data.fcfTotals.totalFCFFund)}</h2>
+            </div>
+          </div>
+          <div className="mt-5 xl:mt-0 flex flex-wrap gap-4 md:gap-6 text-sm font-bangla bg-black/10 px-6 py-4 rounded-xl backdrop-blur-sm border border-white/10">
+            <div>
+              <p className="text-primary-100 mb-1">মোট মেম্বার ফান্ড</p>
+              <p className="font-bold text-lg">{formatCurrency(data.fcfTotals.membersFund)}</p>
+            </div>
+            <div className="w-px bg-white/20 hidden md:block" />
+            <div>
+              <p className="text-primary-100 mb-1">মোট আয়</p>
+              <p className="font-bold text-lg text-green-300">+{formatCurrency(data.fcfTotals.cumulativeIncome)}</p>
+            </div>
+            <div className="w-px bg-white/20 hidden md:block" />
+            <div>
+              <p className="text-primary-100 mb-1">মোট খরচ</p>
+              <p className="font-bold text-lg text-red-300">-{formatCurrency(data.fcfTotals.cumulativeExpenses)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
