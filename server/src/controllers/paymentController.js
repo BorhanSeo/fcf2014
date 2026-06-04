@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const cache = require('../utils/cache');
 
 // GET /api/payments/my — My payment history (User)
 const getMyPayments = async (req, res) => {
@@ -79,6 +80,7 @@ const createPayment = async (req, res) => {
       include: { user: { select: { name: true } } },
     });
 
+    cache.invalidateAll();
     res.status(201).json({ message: 'পেমেন্ট সফলভাবে জমা হয়েছে', payment });
   } catch (error) {
     console.error('CreatePayment error:', error);
@@ -126,6 +128,7 @@ const createBulkPayments = async (req, res) => {
       }
     }
 
+    cache.invalidateAll();
     res.status(201).json({
       message: `${results.success.length} টি সফল, ${results.failed.length} টি ব্যর্থ`,
       results,
@@ -153,6 +156,7 @@ const updatePayment = async (req, res) => {
       data: updateData,
     });
 
+    cache.invalidateAll();
     res.json({ message: 'পেমেন্ট আপডেট হয়েছে', payment });
   } catch (error) {
     console.error('UpdatePayment error:', error);
@@ -164,6 +168,7 @@ const updatePayment = async (req, res) => {
 const deletePayment = async (req, res) => {
   try {
     await prisma.payment.delete({ where: { id: req.params.id } });
+    cache.invalidateAll();
     res.json({ message: 'পেমেন্ট মুছে ফেলা হয়েছে' });
   } catch (error) {
     console.error('DeletePayment error:', error);
