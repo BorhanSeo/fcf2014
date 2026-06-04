@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../utils/prisma');
 const bcrypt = require('bcryptjs');
 const generateToken = require('../utils/generateToken');
-
-const prisma = new PrismaClient();
 
 // POST /api/auth/login
 const login = async (req, res) => {

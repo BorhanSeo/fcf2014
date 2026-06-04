@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../utils/prisma');
 const bcrypt = require('bcryptjs');
 const { getGlobalFinancialTotals, calculateUserPnLFast, calculateUserPnL } = require('../utils/reportCalculators');
-
-const prisma = new PrismaClient();
 
 // GET /api/users — All users list (Admin) — OPTIMIZED: single pass global totals
 const getAllUsers = async (req, res) => {

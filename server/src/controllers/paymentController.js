@@ -1,6 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // GET /api/payments/my — My payment history (User)
 const getMyPayments = async (req, res) => {

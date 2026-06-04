@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('./prisma');
 
 /**
  * Report Calculators — Financial statement logic (OPTIMIZED)
@@ -7,8 +7,6 @@ const { PrismaClient } = require('@prisma/client');
  * OPTIMIZATION: getGlobalFinancialTotals() computes all global sums ONCE.
  * calculateUserPnLFast() accepts these pre-computed totals, eliminating N+1 queries.
  */
-
-const prisma = new PrismaClient();
 
 // ─── Helper: Date range by period ──────────────────────────────
 function getDateRange(period, year, month) {
