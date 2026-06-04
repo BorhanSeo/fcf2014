@@ -5,7 +5,8 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/dateHelpers';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { Wallet, AlertCircle, TrendingUp, CalendarCheck, Loader2, PiggyBank } from 'lucide-react';
+import { Wallet, AlertCircle, TrendingUp, TrendingDown, CalendarCheck, Loader2, PiggyBank } from 'lucide-react';
+
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -64,7 +65,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Total Paid */}
         <Card className="border-l-4 border-l-secondary shadow-sm">
           <CardBody className="p-5 flex items-center gap-4">
@@ -109,6 +110,26 @@ export default function Dashboard() {
           </CardBody>
         </Card>
 
+        {/* Expense Share */}
+        <Card className="border-l-4 border-l-warning shadow-sm">
+          <CardBody className="p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0 text-warning">
+              <TrendingDown className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-text-muted font-bangla">আপনার অংশের খরচ</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">
+                {formatCurrency(data.pnl?.userExpenseShare || 0)}
+              </h3>
+              {data.pnl && (
+                <p className="text-[10px] text-text-secondary mt-1 font-bangla">
+                  মোট {data.pnl.activeUsersCount || 1} জনের মধ্যে সমবণ্টন
+                </p>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+
         {/* Profit Share */}
         <Card className="border-l-4 border-l-primary shadow-sm bg-primary/5">
           <CardBody className="p-5 flex items-center gap-4">
@@ -120,23 +141,26 @@ export default function Dashboard() {
               <h3 className={`text-xl font-bold mt-1 ${data.pnl?.userProfitLoss >= 0 ? 'text-secondary' : 'text-danger'}`}>
                 {data.pnl?.userProfitLoss >= 0 ? '+' : ''}{formatCurrency(data.pnl?.userProfitLoss || 0)}
               </h3>
-              <p className="text-xs text-text-secondary mt-1">শেয়ার: {(data.pnl?.sharePercentage || 0).toFixed(2)}%</p>
+              <p className="text-[10px] text-text-secondary mt-1 font-bangla">
+                শেয়ার: {(data.pnl?.sharePercentage || 0).toFixed(2)}%
+                {data.pnl && ` (অটো: ${formatCurrency(data.pnl.autoProfitLoss || 0)} | ম্যানু: ${formatCurrency(data.pnl.manualProfit || 0)})`}
+              </p>
             </div>
           </CardBody>
         </Card>
 
         {/* Total Receivable */}
-        <Card className="border-l-4 border-l-primary shadow-sm">
+        <Card className="border-l-4 border-l-success shadow-sm">
           <CardBody className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <PiggyBank className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0 text-success">
+              <PiggyBank className="w-6 h-6" />
             </div>
             <div>
               <p className="text-sm font-medium text-text-muted font-bangla">সর্বমোট পাওনা</p>
               <h3 className="text-2xl font-bold text-text-primary mt-1">
-                {formatCurrency(data.summary.totalPaid + Math.max(0, data.pnl?.userProfitLoss || 0))}
+                {formatCurrency(data.summary.totalPaid + (data.pnl?.userProfitLoss || 0) - (data.pnl?.userExpenseShare || 0))}
               </h3>
-              <p className="text-xs text-text-secondary mt-1">জমা + লাভ</p>
+              <p className="text-xs text-text-secondary mt-1 font-bangla">জমা + লাভ - খরচ</p>
             </div>
           </CardBody>
         </Card>
