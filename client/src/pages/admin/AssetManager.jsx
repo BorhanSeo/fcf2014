@@ -121,7 +121,8 @@ export default function AssetManager() {
       )}
 
       <Card>
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-surface-alt/50 border-b border-border">
@@ -179,6 +180,47 @@ export default function AssetManager() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="block md:hidden divide-y divide-border">
+          {loading ? (
+            <div className="px-6 py-12 text-center">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+            </div>
+          ) : assets.length > 0 ? (
+            assets.map((asset) => (
+              <div key={asset.id} className={`p-4 hover:bg-surface-hover/30 transition-colors flex flex-col gap-2 ${asset.isDisposed ? 'opacity-60 bg-gray-50' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-muted">{formatDateShort(asset.purchaseDate)}</span>
+                  {asset.isDisposed ? (
+                    <span className="px-2.5 py-0.5 bg-gray-200 text-gray-700 text-[10px] rounded-full font-semibold">Disposed</span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 bg-success/20 text-success text-[10px] rounded-full font-semibold">Active</span>
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm font-bangla text-text-primary">{asset.name}</h4>
+                  {asset.note && <p className="text-xs text-text-muted mt-0.5">{asset.note}</p>}
+                </div>
+                <div className="flex justify-between items-center text-xs text-text-secondary">
+                  <span className="font-bangla">অবচয় হার: {asset.depreciationRate}%</span>
+                  <span className="font-bold text-primary text-sm">{formatCurrency(asset.purchaseValue)}</span>
+                </div>
+                {isAdmin && !asset.isDisposed && (
+                  <div className="flex justify-end pt-1 mt-1 border-t border-border/30">
+                    <Button size="sm" variant="outline" onClick={() => handleDispose(asset.id, asset.name)}>
+                      বিক্রি/বাদ দিন
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center text-text-muted font-bangla text-sm">
+              কোনো সম্পদের রেকর্ড পাওয়া যায়নি।
+            </div>
+          )}
         </div>
       </Card>
     </div>

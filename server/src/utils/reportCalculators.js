@@ -1,4 +1,5 @@
 const prisma = require('./prisma');
+const cache = require('./cache');
 
 /**
  * Report Calculators — Financial statement logic (OPTIMIZED)
@@ -48,6 +49,11 @@ function getPaymentFilter(period, year, month, type) {
 // ─── NEW: Compute all global financial totals ONCE ──────────────
 // Used by getAllUsers to avoid N+1 queries.
 async function getGlobalFinancialTotals(period, year, month) {
+  // Cache this expensive computation (8+ parallel DB queries)
+  const cacheKey = `global-totals-${period}-${year}-${month}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const { start, end } = getDateRange(period, year, month || 12);
   const paymentFilter = getPaymentFilter(period, year, month, 'lte');
 
@@ -115,7 +121,7 @@ async function getGlobalFinancialTotals(period, year, month) {
     userManualProfitMap[row.userId] = row._sum.amount || 0;
   });
 
-  return {
+  const result = {
     totalContributions,
     totalIncome,
     totalExpenses,
@@ -125,6 +131,9 @@ async function getGlobalFinancialTotals(period, year, month) {
     userManualProfitMap,
     totalManualProfit,
   };
+
+  cache.set(cacheKey, result, 120000); // 2 min cache
+  return result;
 }
 
 // ─── Fast per-user P&L using pre-computed global totals ─────────

@@ -97,7 +97,8 @@ const Income = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 font-bangla text-gray-600">
@@ -144,6 +145,42 @@ const Income = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="block md:hidden divide-y divide-border">
+          {incomes.length === 0 ? (
+            <div className="p-8 text-center text-text-secondary font-bangla">কোনো আয় পাওয়া যায়নি</div>
+          ) : (
+            incomes.map((inc) => (
+              <div key={inc.id} className="p-4 hover:bg-surface-hover/30 transition-colors flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-muted">
+                    {new Date(inc.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <span className="text-[11px] font-bangla px-2 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10">
+                    {categories.find(c => c.value === inc.category)?.label || inc.category}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm font-bangla text-text-primary">{inc.source}</h4>
+                  {inc.note && <p className="text-xs text-text-muted mt-0.5">{inc.note}</p>}
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-sm font-bold text-success">৳ {inc.amount.toLocaleString('en-IN')}</span>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDelete(inc.id)}
+                      className="p-1.5 text-danger hover:bg-danger/10 rounded transition-colors"
+                      title="ডিলিট"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

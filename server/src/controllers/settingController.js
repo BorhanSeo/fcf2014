@@ -12,9 +12,13 @@ const DEFAULT_SETTINGS = {
 };
 
 
-// GET /api/settings - Fetch all settings
+// GET /api/settings - Fetch all settings (CACHED)
 const getSettings = async (req, res) => {
   try {
+    const cacheKey = 'app-settings';
+    let cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
     const dbSettings = await prisma.setting.findMany();
     
     // Convert array of {key, value} to a single object
@@ -25,7 +29,9 @@ const getSettings = async (req, res) => {
 
     // Merge with defaults
     const finalSettings = { ...DEFAULT_SETTINGS, ...settingsObj };
-    res.json({ settings: finalSettings });
+    const result = { settings: finalSettings };
+    cache.set(cacheKey, result, 300000); // 5 min cache
+    res.json(result);
   } catch (error) {
     console.error('GetSettings error:', error);
     res.status(500).json({ message: 'সার্ভার এরর' });

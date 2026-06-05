@@ -36,7 +36,17 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// ─── Response compression — reduces JSON payload size by 60-80% ──
+// Especially impactful for large dashboard/report responses
+app.use((req, res, next) => {
+  // Cache-Control for GET API responses — browsers can reuse fresh responses
+  if (req.method === 'GET' && req.path.startsWith('/api/')) {
+    res.set('Cache-Control', 'private, max-age=30'); // 30-second browser cache
+  }
+  next();
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);

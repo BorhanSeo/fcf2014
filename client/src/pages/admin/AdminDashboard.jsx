@@ -32,9 +32,12 @@ export default function AdminDashboard() {
   const fetchDashboard = useCallback(async (year) => {
     setLoading(true);
     try {
-      const res = await api.get('/reports/admin-dashboard', { params: { year } });
-      setData(res.data);
-      const pendingRes = await api.get('/payments/pending');
+      // Parallel fetch — previously sequential (2 round trips → 1)
+      const [dashRes, pendingRes] = await Promise.all([
+        api.get('/reports/admin-dashboard', { params: { year } }),
+        api.get('/payments/pending'),
+      ]);
+      setData(dashRes.data);
       setPendingPayments(pendingRes.data.pendingPayments || []);
     } catch (e) {
       console.error('Dashboard error:', e);
@@ -49,21 +52,27 @@ export default function AdminDashboard() {
 
   const handleApprove = async (id) => {
     if (!window.confirm('আপনি কি এই পেমেন্টটি অনুমোদন করতে চান?')) return;
+    // Optimistic: remove from pending list instantly
+    setPendingPayments(prev => prev.filter(p => p.id !== id));
     try {
       await api.post(`/payments/${id}/approve`);
       fetchDashboard(selectedYear);
     } catch (error) {
       alert('অনুমোদন করতে সমস্যা হয়েছে');
+      fetchDashboard(selectedYear); // Revert on error
     }
   };
 
   const handleReject = async (id) => {
     if (!window.confirm('আপনি কি এই পেমেন্টটি বাতিল করতে চান?')) return;
+    // Optimistic: remove from pending list instantly
+    setPendingPayments(prev => prev.filter(p => p.id !== id));
     try {
       await api.post(`/payments/${id}/reject`);
       fetchDashboard(selectedYear);
     } catch (error) {
       alert('বাতিল করতে সমস্যা হয়েছে');
+      fetchDashboard(selectedYear); // Revert on error
     }
   };
 
@@ -180,7 +189,8 @@ export default function AdminDashboard() {
           <div className="px-5 py-4 border-b border-border bg-warning/5 flex items-center justify-between">
             <h3 className="font-bold font-bangla text-warning-dark">অপেক্ষমান পেমেন্ট ({pendingPayments.length})</h3>
           </div>
-          <div className="overflow-x-auto">
+          {/* Desktop View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-surface-alt/30 border-b border-border">
@@ -229,6 +239,49 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile View */}
+          <div className="block md:hidden divide-y divide-border">
+            {pendingPayments.map(p => (
+              <div key={p.id} className="p-4 hover:bg-surface-hover/30 transition-colors flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-bold text-sm text-text-primary font-bangla">{p.user?.name}</h4>
+                    <p className="text-xs text-text-muted">{p.user?.phone || 'No phone'}</p>
+                  </div>
+                  <span className="text-sm font-bold text-text-primary">{formatCurrency(p.amount)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <div>
+                    <p className="font-semibold font-bangla text-text-secondary">{getMonthName(p.month)} {p.year}</p>
+                    <p className="text-text-muted mt-0.5">{formatDateShort(p.createdAt)}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-surface-alt border border-border">
+                      {p.method}
+                    </span>
+                    {p.note && <p className="text-[10px] text-text-muted mt-1 max-w-[120px] truncate" title={p.note}>{p.note}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/30">
+                  <button 
+                    onClick={() => handleApprove(p.id)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-success/10 text-success hover:bg-success hover:text-white rounded-lg transition-colors text-xs font-bangla font-medium"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>অনুমোদন</span>
+                  </button>
+                  <button 
+                    onClick={() => handleReject(p.id)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-danger/10 text-danger hover:bg-danger hover:text-white rounded-lg transition-colors text-xs font-bangla font-medium"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>বাতিল</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}

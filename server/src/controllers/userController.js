@@ -2,10 +2,15 @@ const prisma = require('../utils/prisma');
 const bcrypt = require('bcryptjs');
 const cache = require('../utils/cache');
 const { getGlobalFinancialTotals, calculateUserPnLFast, calculateUserPnL } = require('../utils/reportCalculators');
+const { invalidateUserCache } = require('../middleware/authMiddleware');
 
-// GET /api/users — All users list (Admin) — OPTIMIZED: single pass global totals
+// GET /api/users — All users list (Admin) — OPTIMIZED: single pass global totals + CACHED
 const getAllUsers = async (req, res) => {
   try {
+    const cacheKey = 'all-users-list';
+    let cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
     const now = new Date();
 
     // Fetch users with their payments AND compute global totals — in parallel
@@ -69,7 +74,9 @@ const getAllUsers = async (req, res) => {
       return { ...userWithoutPayments, totalReceivable, totalDue };
     });
 
-    res.json({ users: usersWithData });
+    const result = { users: usersWithData };
+    cache.set(cacheKey, result, 120000); // 2 min cache
+    res.json(result);
   } catch (error) {
     console.error('GetAllUsers error:', error);
     res.status(500).json({ message: 'সার্ভার এরর' });
@@ -114,6 +121,7 @@ const createUser = async (req, res) => {
     });
 
     cache.invalidateAll();
+    invalidateUserCache();
     res.status(201).json({ message: 'ব্যবহারকারী সফলভাবে তৈরি হয়েছে', user });
   } catch (error) {
     console.error('CreateUser error:', error);
@@ -193,6 +201,7 @@ const updateUser = async (req, res) => {
     });
 
     cache.invalidateAll();
+    invalidateUserCache(req.params.id);
     res.json({ message: 'ব্যবহারকারী আপডেট হয়েছে', user });
   } catch (error) {
     console.error('UpdateUser error:', error);
@@ -216,6 +225,7 @@ const toggleUser = async (req, res) => {
     });
 
     cache.invalidateAll();
+    invalidateUserCache(req.params.id);
     res.json({
       message: updatedUser.isActive ? 'অ্যাকাউন্ট সক্রিয় করা হয়েছে' : 'অ্যাকাউন্ট নিষ্ক্রিয় করা হয়েছে',
       user: updatedUser,
@@ -226,9 +236,13 @@ const toggleUser = async (req, res) => {
   }
 };
 
-// GET /api/users/my-summary — User dashboard summary
+// GET /api/users/my-summary — User dashboard summary (CACHED)
 const getMySummary = async (req, res) => {
   try {
+    const cacheKey = `my-summary-${req.user.id}`;
+    let cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
     const globalTotals = await getGlobalFinancialTotals('all-time');
     const pnl = {
       ...calculateUserPnLFast(req.user.id, globalTotals),
@@ -240,7 +254,7 @@ const getMySummary = async (req, res) => {
     const cumulativeExpenses = globalTotals.totalExpenses + (globalTotals.depreciation || 0);
     const totalFCFFund = membersFund + cumulativeIncome - cumulativeExpenses;
 
-    res.json({ 
+    const result = { 
       pnl,
       fcfTotals: {
         totalFCFFund,
@@ -248,7 +262,9 @@ const getMySummary = async (req, res) => {
         cumulativeIncome,
         cumulativeExpenses
       }
-    });
+    };
+    cache.set(cacheKey, result, 120000); // 2 min cache
+    res.json(result);
   } catch (error) {
     console.error('GetMySummary error:', error);
     res.status(500).json({ message: 'সার্ভার এরর' });

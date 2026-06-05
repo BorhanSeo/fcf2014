@@ -4,27 +4,36 @@ import api from '../utils/api';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState({});
+  // OPTIMIZATION: Immediately hydrate from localStorage — no blank screen flash
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sanchoy_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('sanchoy_token'));
+  const [settings, setSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sanchoy_settings');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('sanchoy_token');
-    const savedUser = localStorage.getItem('sanchoy_user');
 
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-      // Verify token is still valid
-      api.get('/auth/me')
-        .then((res) => {
-          setUser(res.data.user);
-          localStorage.setItem('sanchoy_user', JSON.stringify(res.data.user));
-          // Fetch settings after verification
-          return api.get('/settings');
-        })
-        .then((res) => {
-          if (res && res.data) {
-            setSettings(res.data.settings);
+    if (token && user) {
+      // OPTIMIZATION: Fetch /auth/me + /settings in PARALLEL (was sequential)
+      Promise.all([
+        api.get('/auth/me'),
+        api.get('/settings'),
+      ])
+        .then(([authRes, settingsRes]) => {
+          setUser(authRes.data.user);
+          localStorage.setItem('sanchoy_user', JSON.stringify(authRes.data.user));
+          if (settingsRes?.data) {
+            setSettings(settingsRes.data.settings);
+            localStorage.setItem('sanchoy_settings', JSON.stringify(settingsRes.data.settings));
           }
         })
         .catch(() => {
@@ -43,13 +52,13 @@ export function AuthProvider({ children }) {
     localStorage.setItem('sanchoy_user', JSON.stringify(userData));
     setUser(userData);
 
-    // Fetch settings on login
-    try {
-      const settingsRes = await api.get('/settings');
-      setSettings(settingsRes.data.settings);
-    } catch (e) {
-      console.error('Error fetching settings on login:', e);
-    }
+    // Fetch settings on login (non-blocking)
+    api.get('/settings')
+      .then(settingsRes => {
+        setSettings(settingsRes.data.settings);
+        localStorage.setItem('sanchoy_settings', JSON.stringify(settingsRes.data.settings));
+      })
+      .catch(e => console.error('Error fetching settings on login:', e));
 
     return userData;
   };
@@ -57,6 +66,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem('sanchoy_token');
     localStorage.removeItem('sanchoy_user');
+    localStorage.removeItem('sanchoy_settings');
     setUser(null);
     setSettings({});
   };

@@ -114,7 +114,8 @@ export default function PaymentHistory() {
       </div>
 
       <Card>
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-surface-alt/50 border-b border-border">
@@ -162,6 +163,41 @@ export default function PaymentHistory() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="block md:hidden divide-y divide-border">
+          {loading ? (
+            <div className="px-6 py-12 text-center">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+            </div>
+          ) : currentPayments.length > 0 ? (
+            currentPayments.map((payment) => (
+              <div key={payment.id} className="p-4 hover:bg-surface-hover/30 transition-colors flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-surface-alt flex flex-col items-center justify-center border border-border flex-shrink-0">
+                      <span className="text-[10px] font-bold text-text-primary">{payment.month}</span>
+                      <span className="text-[8px] text-text-secondary">{payment.year}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm font-bangla">{getMonthName(payment.month)} {payment.year}</p>
+                      <p className="text-[11px] text-text-muted">{payment.note || 'মাসিক চাঁদা'}</p>
+                    </div>
+                  </div>
+                  <Badge variant={payment.status.toLowerCase()}>{payment.status}</Badge>
+                </div>
+                <div className="flex items-center justify-between mt-1 pt-1 border-t border-border/30">
+                  <span className="text-xs text-text-muted">তারিখ: {formatDateShort(payment.paidDate)}</span>
+                  <span className="text-sm font-bold text-text-primary">{formatCurrency(payment.amount)}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center text-text-muted font-bangla text-sm">
+              কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি।
+            </div>
+          )}
         </div>
 
         {/* Pagination Controls */}

@@ -314,77 +314,140 @@ export default function AdminSettings() {
                 <p className="text-sm text-text-muted font-bangla mt-2">ব্যবহারকারী তালিকা লোড হচ্ছে...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-surface-alt/20 border-b border-border">
-                      <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla">নাম ও যোগাযোগ</th>
-                      <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla">বর্তমান রোল</th>
-                      <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla text-right">রোল পরিবর্তন</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {usersList.filter(u => 
-                      u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
-                      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-                      (u.phone && u.phone.includes(userSearch))
-                    ).length === 0 ? (
-                      <tr>
-                        <td colSpan="3" className="px-6 py-8 text-center text-text-muted font-bangla text-sm">
-                          কোনো ব্যবহারকারী পাওয়া যায়নি
-                        </td>
+              <>
+                {/* Desktop View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-surface-alt/20 border-b border-border">
+                        <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla">নাম ও যোগাযোগ</th>
+                        <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla">বর্তমান রোল</th>
+                        <th className="px-6 py-3 text-sm font-semibold text-text-secondary font-bangla text-right">রোল পরিবর্তন</th>
                       </tr>
-                    ) : (
-                      usersList
-                        .filter(u => 
-                          u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
-                          u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-                          (u.phone && u.phone.includes(userSearch))
-                        )
-                        .map((u) => (
-                          <tr key={u.id} className="hover:bg-surface-hover/30 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white font-bangla text-sm
-                                  ${u.role === 'SUPER_ADMIN' ? 'bg-primary' : 'bg-secondary'}
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {usersList.filter(u => 
+                        u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                        u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                        (u.phone && u.phone.includes(userSearch))
+                      ).length === 0 ? (
+                        <tr>
+                          <td colSpan="3" className="px-6 py-8 text-center text-text-muted font-bangla text-sm">
+                            কোনো ব্যবহারকারী পাওয়া যায়নি
+                          </td>
+                        </tr>
+                      ) : (
+                        usersList
+                          .filter(u => 
+                            u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                            u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                            (u.phone && u.phone.includes(userSearch))
+                          )
+                          .map((u) => (
+                            <tr key={u.id} className="hover:bg-surface-hover/30 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white font-bangla text-sm
+                                    ${u.role === 'SUPER_ADMIN' ? 'bg-primary' : 'bg-secondary'}
+                                  `}>
+                                    {u.name.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-sm font-bangla text-text-primary">{u.name}</p>
+                                    <p className="text-xs text-text-muted mt-0.5">{u.email} {u.phone && `• ${u.phone}`}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold font-bangla
+                                  ${u.role === 'SUPER_ADMIN' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}
                                 `}>
-                                  {u.name.charAt(0)}
+                                  {u.role === 'SUPER_ADMIN' ? 'অ্যাডমিন' : 'সদস্য'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="inline-flex items-center gap-2 justify-end w-full">
+                                  {updatingUserRole === u.id && (
+                                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                  )}
+                                  <select
+                                    value={u.role}
+                                    disabled={updatingUserRole === u.id || u.id === user.id}
+                                    onChange={(e) => handleRoleChange(u.id, u.name, e.target.value)}
+                                    className="border border-border rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla bg-white cursor-pointer disabled:opacity-50"
+                                  >
+                                    <option value="USER">সদস্য (USER)</option>
+                                    <option value="SUPER_ADMIN">অ্যাডমিন (SUPER_ADMIN)</option>
+                                  </select>
                                 </div>
-                                <div>
-                                  <p className="font-semibold text-sm font-bangla text-text-primary">{u.name}</p>
-                                  <p className="text-xs text-text-muted mt-0.5">{u.email} {u.phone && `• ${u.phone}`}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold font-bangla
-                                ${u.role === 'SUPER_ADMIN' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}
+                              </td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile View */}
+                <div className="block md:hidden divide-y divide-border">
+                  {usersList.filter(u => 
+                    u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                    (u.phone && u.phone.includes(userSearch))
+                  ).length === 0 ? (
+                    <div className="px-6 py-8 text-center text-text-muted font-bangla text-sm">
+                      কোনো ব্যবহারকারী পাওয়া যায়নি
+                    </div>
+                  ) : (
+                    usersList
+                      .filter(u => 
+                        u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                        u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                        (u.phone && u.phone.includes(userSearch))
+                      )
+                      .map((u) => (
+                        <div key={u.id} className="p-4 hover:bg-surface-hover/30 transition-colors flex flex-col gap-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white font-bangla text-sm flex-shrink-0
+                                ${u.role === 'SUPER_ADMIN' ? 'bg-primary' : 'bg-secondary'}
                               `}>
-                                {u.role === 'SUPER_ADMIN' ? 'অ্যাডমিন' : 'সদস্য'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="inline-flex items-center gap-2 justify-end w-full">
-                                {updatingUserRole === u.id && (
-                                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                                )}
-                                <select
-                                  value={u.role}
-                                  disabled={updatingUserRole === u.id || u.id === user.id}
-                                  onChange={(e) => handleRoleChange(u.id, u.name, e.target.value)}
-                                  className="border border-border rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla bg-white cursor-pointer disabled:opacity-50"
-                                >
-                                  <option value="USER">সদস্য (USER)</option>
-                                  <option value="SUPER_ADMIN">অ্যাডমিন (SUPER_ADMIN)</option>
-                                </select>
+                                {u.name.charAt(0)}
                               </div>
-                            </td>
-                          </tr>
-                        ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                              <div>
+                                <p className="font-semibold text-sm font-bangla text-text-primary">{u.name}</p>
+                                <p className="text-xs text-text-muted mt-0.5">{u.email}</p>
+                                {u.phone && <p className="text-xs text-text-muted">{u.phone}</p>}
+                              </div>
+                            </div>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold font-bangla
+                              ${u.role === 'SUPER_ADMIN' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}
+                            `}>
+                              {u.role === 'SUPER_ADMIN' ? 'অ্যাডমিন' : 'সদস্য'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                            <span className="text-xs text-text-muted font-bangla">রোল পরিবর্তন করুন</span>
+                            <div className="flex items-center gap-2">
+                              {updatingUserRole === u.id && (
+                                <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                              )}
+                              <select
+                                value={u.role}
+                                disabled={updatingUserRole === u.id || u.id === user.id}
+                                onChange={(e) => handleRoleChange(u.id, u.name, e.target.value)}
+                                className="border border-border rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bangla bg-white cursor-pointer disabled:opacity-50"
+                              >
+                                <option value="USER">সদস্য (USER)</option>
+                                <option value="SUPER_ADMIN">অ্যাডমিন (SUPER_ADMIN)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </>
             )}
           </CardBody>
         </Card>

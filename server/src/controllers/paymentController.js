@@ -88,7 +88,7 @@ const createPayment = async (req, res) => {
   }
 };
 
-// POST /api/payments/bulk — Bulk payment entry (Admin)
+// POST /api/payments/bulk — Bulk payment entry (Admin) — OPTIMIZED with transaction
 const createBulkPayments = async (req, res) => {
   try {
     const { payments } = req.body; // Array of { userId, year, month, amount, paidDate, note }
@@ -97,35 +97,50 @@ const createBulkPayments = async (req, res) => {
       return res.status(400).json({ message: 'পেমেন্ট তালিকা প্রদান করুন' });
     }
 
+    // Pre-fetch all existing payments in one query (instead of N queries)
+    const existingKeys = payments.map(p => ({
+      userId: p.userId, year: parseInt(p.year), month: parseInt(p.month)
+    }));
+    
+    const existing = await prisma.payment.findMany({
+      where: {
+        OR: existingKeys.map(k => ({
+          userId: k.userId, year: k.year, month: k.month
+        }))
+      },
+      select: { userId: true, year: true, month: true }
+    });
+
+    const existingSet = new Set(
+      existing.map(e => `${e.userId}-${e.year}-${e.month}`)
+    );
+
     const results = { success: [], failed: [] };
+    const toCreate = [];
 
     for (const p of payments) {
-      try {
-        const existing = await prisma.payment.findUnique({
-          where: { userId_year_month: { userId: p.userId, year: parseInt(p.year), month: parseInt(p.month) } },
+      const key = `${p.userId}-${parseInt(p.year)}-${parseInt(p.month)}`;
+      if (existingSet.has(key)) {
+        results.failed.push({ userId: p.userId, reason: 'ডুপ্লিকেট এন্ট্রি' });
+      } else {
+        toCreate.push({
+          userId: p.userId,
+          year: parseInt(p.year),
+          month: parseInt(p.month),
+          amount: parseFloat(p.amount),
+          paidDate: p.paidDate ? new Date(p.paidDate) : new Date(),
+          note: p.note || null,
+          status: 'PAID',
         });
-
-        if (existing) {
-          results.failed.push({ userId: p.userId, reason: 'ডুপ্লিকেট এন্ট্রি' });
-          continue;
-        }
-
-        const payment = await prisma.payment.create({
-          data: {
-            userId: p.userId,
-            year: parseInt(p.year),
-            month: parseInt(p.month),
-            amount: parseFloat(p.amount),
-            paidDate: p.paidDate ? new Date(p.paidDate) : new Date(),
-            note: p.note || null,
-            status: 'PAID',
-          },
-        });
-
-        results.success.push(payment);
-      } catch (err) {
-        results.failed.push({ userId: p.userId, reason: err.message });
       }
+    }
+
+    // Batch create in a single transaction
+    if (toCreate.length > 0) {
+      const created = await prisma.$transaction(
+        toCreate.map(data => prisma.payment.create({ data }))
+      );
+      results.success = created;
     }
 
     cache.invalidateAll();

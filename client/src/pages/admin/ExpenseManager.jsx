@@ -189,7 +189,8 @@ export default function ExpenseManager() {
       )}
 
       <Card>
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-surface-alt/50 border-b border-border">
@@ -240,6 +241,49 @@ export default function ExpenseManager() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="block md:hidden divide-y divide-border">
+          {loading ? (
+            <div className="px-6 py-12 text-center">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+            </div>
+          ) : currentExpenses.length > 0 ? (
+            currentExpenses.map((expense) => (
+              <div key={expense.id} className="p-4 hover:bg-surface-hover/30 transition-colors flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-muted">{formatDateShort(expense.date)}</span>
+                  <span className="text-[11px] font-bangla px-2 py-0.5 rounded-full bg-surface-alt text-text-secondary border border-border">
+                    {expense.category === 'Operating Expense' ? 'অপারেটিং খরচ' : 
+                     expense.category === 'Administrative' ? 'প্রশাসনিক খরচ' : 
+                     expense.category === 'Entertainment' ? 'আপ্যায়ন' : 
+                     expense.category === 'Other' ? 'অন্যান্য' : expense.category}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm font-bangla text-text-primary">{expense.title}</h4>
+                  {expense.note && <p className="text-xs text-text-muted mt-0.5">{expense.note}</p>}
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-sm font-bold text-danger">{formatCurrency(expense.amount)}</span>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => handleDeleteExpense(expense.id)}
+                      className="p-1.5 text-danger hover:bg-danger/10 rounded transition-colors"
+                      title="মুছে ফেলুন"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center text-text-muted font-bangla text-sm">
+              কোনো খরচের রেকর্ড পাওয়া যায়নি।
+            </div>
+          )}
         </div>
         {/* Pagination Controls */}
         {totalPages > 1 && (

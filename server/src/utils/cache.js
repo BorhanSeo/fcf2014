@@ -1,7 +1,10 @@
 /**
  * In-memory cache for expensive DB queries.
  * On Vercel serverless, this lives as long as the warm function instance.
- * TTL = 60 seconds — stale data is acceptable for dashboards.
+ * TTL = 120 seconds (2 minutes) — stale data is acceptable for dashboards.
+ * 
+ * PERFORMANCE: Previously 60s TTL caused frequent re-computation.
+ * Mutation endpoints call invalidate() to ensure fresh data after writes.
  */
 
 const cache = new Map();
@@ -16,7 +19,7 @@ function get(key) {
   return entry.data;
 }
 
-function set(key, data, ttlMs = 60000) {
+function set(key, data, ttlMs = 120000) {
   cache.set(key, { data, expiry: Date.now() + ttlMs });
 }
 
