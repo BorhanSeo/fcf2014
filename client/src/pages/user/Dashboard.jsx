@@ -70,7 +70,7 @@ export default function Dashboard() {
 
       {/* Total FCF Fund Banner */}
       {data.fcfTotals && (
-        <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 text-white shadow-lg shadow-primary/20 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 text-white shadow-lg shadow-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-5">
             <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
               <Landmark className="w-8 h-8 text-white" />
@@ -80,6 +80,18 @@ export default function Dashboard() {
               <h2 className="text-3xl md:text-4xl font-bold mt-1 tracking-tight">{formatCurrency(data.fcfTotals.totalFCFFund)}</h2>
             </div>
           </div>
+          {/* Total Dues displayed next to it */}
+          {data.fcfTotals.totalDues !== undefined && (
+            <div className="bg-white/10 px-5 py-3 rounded-2xl border border-white/15 backdrop-blur-sm flex items-center gap-3 self-start sm:self-auto">
+              <div className="p-2 bg-rose-500/20 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-rose-200" />
+              </div>
+              <div>
+                <p className="text-rose-100 font-medium font-bangla text-xs">সর্বমোট বকেয়া (Total Dues)</p>
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white mt-0.5">{formatCurrency(data.fcfTotals.totalDues)}</h2>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

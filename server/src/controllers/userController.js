@@ -243,7 +243,20 @@ const getMySummary = async (req, res) => {
     let cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
-    const globalTotals = await getGlobalFinancialTotals('all-time');
+    const [globalTotals, users] = await Promise.all([
+      getGlobalFinancialTotals('all-time'),
+      prisma.user.findMany({
+        select: {
+          joinDate: true,
+          monthlyAmount: true,
+          payments: {
+            where: { status: 'PAID' },
+            select: { amount: true, year: true, month: true },
+          },
+        },
+      }),
+    ]);
+
     const pnl = {
       ...calculateUserPnLFast(req.user.id, globalTotals),
       period: { type: 'all-time' }
@@ -254,13 +267,44 @@ const getMySummary = async (req, res) => {
     const cumulativeExpenses = globalTotals.totalExpenses + (globalTotals.depreciation || 0);
     const totalFCFFund = membersFund + cumulativeIncome - cumulativeExpenses;
 
+    // Calculate totalDues of all users
+    const now = new Date();
+    let totalDues = 0;
+    users.forEach(u => {
+      const joinDate = new Date(u.joinDate);
+      const paidMap = new Map();
+      u.payments.forEach(p => {
+        const key = `${p.year}-${p.month}`;
+        paidMap.set(key, (paidMap.get(key) || 0) + p.amount);
+      });
+
+      let startMonth = joinDate.getMonth();
+      let startYear = joinDate.getFullYear();
+
+      if (startYear < 2025 || (startYear === 2025 && startMonth < 8)) {
+        startYear = 2025;
+        startMonth = 8;
+      }
+
+      let current = new Date(startYear, startMonth, 1);
+      while (current <= now) {
+        const y = current.getFullYear();
+        const m = current.getMonth() + 1;
+        const paid = paidMap.get(`${y}-${m}`) || 0;
+        const dueAmount = Math.max(0, u.monthlyAmount - paid);
+        if (dueAmount > 0) totalDues += dueAmount;
+        current.setMonth(current.getMonth() + 1);
+      }
+    });
+
     const result = { 
       pnl,
       fcfTotals: {
         totalFCFFund,
         membersFund,
         cumulativeIncome,
-        cumulativeExpenses
+        cumulativeExpenses,
+        totalDues
       }
     };
     cache.set(cacheKey, result, 120000); // 2 min cache
